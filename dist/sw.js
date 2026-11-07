@@ -1,4 +1,4 @@
-const CACHE='ssc-compass-shell-v8-marathi-index';
+const CACHE='ssc-compass-shell-v9-paper-sections';
 const FILES=['./','./index.html','./style.css','./app.js','./core.js','./syllabus.js','./result-tools.js','./study-tools.js','./cloud.js','./firebase-config.js','./icon.svg','./icon-192.png','./icon-512.png','./manifest.webmanifest'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('ssc-compass-shell-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
