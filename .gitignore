@@ -8,3 +8,4 @@ node_modules/
 *-debug.log
 service-account*.json
 *serviceAccount*.json
+dist/pdf-viewer/

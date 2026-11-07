@@ -1,4 +1,5 @@
-import {TEXTBOOKS,chapterFor} from './textbooks.js';
+import {openTextbook} from './textbook-reader.js';
+import {TEXTBOOKS,CHAPTERS,chapterFor} from './textbooks.js';
 import quizConfig from './quiz-config.js';
 import {TEST_PREP_DAYS,testPrepPlan,testReadiness} from './upcoming-tests.js';
 import {MAX_REMINDER_TIMES,validateReminderSettings,reminderTimes,reminderMinute,reminderClock,reminderSlots,reminderCalendar} from './reminders.js';
@@ -82,17 +83,20 @@ function archivedLessonPanel(){
 }
 function textbookLibrary(){
  return `<details class="card spacer"><summary>Textbook library · ${TEXTBOOKS.length} Balbharati books</summary>
-  <p class="subheading">Open the official PDFs or jump to a chapter from its lesson card.</p>
-  <ul>${TEXTBOOKS.map(book=>`<li><a href="${book.url}" target="_blank" rel="noopener noreferrer">${esc(book.title)}</a></li>`).join('')}</ul>
+  <p class="subheading">Read the official PDFs here, or jump to a chapter from its lesson card.</p>
+  <ul>${TEXTBOOKS.map(book=>`<li>${readerButton(book,1,book.title)}</li>`).join('')}</ul>
  </details>`;
+}
+function readerButton(book,page,label='Read textbook'){
+ return button(esc(label),'read-textbook','ghost',`type="button" data-book="${book.code}" data-printed-page="${page}"`);
 }
 function textbookActions(lesson){
  const chapter=chapterFor(lesson);
  if(!chapter)return '';
- return `<a class="textbook-link" href="${chapter.url}#page=${chapter.first+chapter.offset}" target="_blank" rel="noopener noreferrer">Textbook</a>
+ return `${readerButton(chapter,chapter.first)}
   ${button('AI quiz','lesson-quiz','ghost',`data-id="${esc(lesson.id)}"`)}`;
 }
-function showLessonQuiz(id){
+function showLessonQuiz(id,sharedQuiz){
  const lesson=state.lessons.find(item=>item.id===id);
  const chapter=lesson&&chapterFor(lesson);
  if(!chapter)return;
@@ -100,12 +104,11 @@ function showLessonQuiz(id){
  dialog.innerHTML=`<div class="row between"><h2>AI practice quiz</h2>
   ${button('Close','close','ghost','type="button"')}</div>
   <p><b>${esc(chapter.title)}</b> · ${esc(chapter.book)} · pp. ${chapter.first}–${chapter.last}</p>
-  <p class="subheading">Generate five questions from a set of pages in this chapter. AI can make mistakes. Check the linked textbook page if an answer looks wrong.</p>
+  <p class="subheading">Generate five questions from this chapter. SSC Compass fetches the textbook pages automatically. AI can make mistakes. Check the linked textbook page if an answer looks wrong.</p>
   ${!quizConfig.endpoint?'<p class="notice">The AI quiz service needs to be connected. The textbook is available below.</p>':
    !cloud.session?'<p class="notice">Sign in with an authorised adult account to generate a quiz.</p>':
    '<button type="button" id="generate-quiz">Generate 5 questions</button>'}
-  <p><a href="${chapter.url}#page=${chapter.first+chapter.offset}" target="_blank" rel="noopener noreferrer">Read this chapter</a></p>
-  <label>Open a shared quiz file<input type="file" id="quiz-import" accept=".json,application/json"></label>
+  <p>${readerButton(chapter,chapter.first,'Read this chapter')}</p>
   <div id="quiz-output" aria-live="polite"></div>
   <p><a href="mailto:support.aurorasoftwarelabs@gmail.com?subject=SSC%20Compass%20quiz%20feedback">Report a quiz issue</a></p>`;
  dialog.showModal();
@@ -137,20 +140,16 @@ function showLessonQuiz(id){
      const right=Number(choices.get('question-'+index))===question.answer;
      correct+=Number(right);
      feedback.innerHTML=`<b>${right?'Correct':'Correct answer: '+esc(question.options[question.answer])}</b>
-      <p>${esc(question.explanation)} <a href="${chapter.url}#page=${Number(question.page)+chapter.offset}" target="_blank" rel="noopener noreferrer">Textbook p. ${Number(question.page)}</a></p>`;
+      <p>${esc(question.explanation)} ${readerButton(chapter,question.page,'Textbook p. '+question.page)}</p>`;
      feedback.hidden=false;
     });
     output.querySelector('.quiz-total').textContent=`${correct} / ${quiz.questions.length} correct`;
    });
  };
- $('#quiz-import').addEventListener('change',async event=>{
-  const file=event.target.files[0];
-  if(!file)return;
-  try{
-   if(file.size>50000)throw Error('This quiz file is too large.');
-   displayQuiz(JSON.parse(await file.text()));
-  }catch(error){output.textContent=error.message;}
- });
+ if(sharedQuiz){
+  try{displayQuiz(sharedQuiz);}
+  catch(error){output.textContent=error.message;}
+ }
  if(!generate)return;
  generate.addEventListener('click',async()=>{
   generate.disabled=true;
@@ -170,8 +169,16 @@ function showLessonQuiz(id){
    const share=document.createElement('button');
    share.type='button';
    share.className='secondary';
-   share.textContent='Download quiz to share';
-   share.addEventListener('click',()=>download('ssc-'+chapter.lessonId+'-quiz.json',JSON.stringify(quiz)));
+   share.textContent='Copy quiz link';
+   share.addEventListener('click',async()=>{
+    try{
+     const link=new URL(location.href);
+     const bytes=new TextEncoder().encode(JSON.stringify(quiz));
+     link.hash='quiz='+btoa(String.fromCharCode(...bytes));
+     await navigator.clipboard.writeText(link.href);
+     toast('Quiz link copied.');
+    }catch{toast('Could not copy the quiz link.');}
+   });
    output.prepend(share);
    generate.textContent='Generate a fresh quiz';
   }catch(error){output.textContent=error.message;}
@@ -543,7 +550,7 @@ case 'enable-alerts':await enableAlerts();break;case 'focus-return':showFocus();
  render();
  $('#subject-filter').focus();
  break;
-case 'lesson-quiz':showLessonQuiz(id);break;case 'add-lesson':lessonDialog();break;case 'open-lesson':lessonDialog(id);break;case 'next':{let l=recommendations(state)[0];if(l)lessonDialog(l.id);else toast('All caught up. Add a timed practice paper.');break;}case 'review':{let l=state.lessons.find(x=>x.id===id);l.lastReview=today();l.reviewCount=(l.reviewCount||0)+1;l.reviewDue=addDays(today(),[1,3,7,14,30][Math.min(l.reviewCount,4)]);commit('Review saved. Next: '+fmt(l.reviewDue));break;}case 'targets':targetsDialog();break;case 'score':scoreDialog();break;case 'edit-score':scoreDialog(id);break;case 'delete-score':confirmAction('Delete this result?','This removes the result from all calculations.',()=>{state.scores=state.scores.filter(s=>s.id!==id);commit('Result deleted.');});break;case 'delete-lesson':confirmAction('Delete this lesson?','This removes its progress and linked tasks. Export a backup first if needed.',()=>{if(state.lessons.length<=1)throw Error('Keep at least one lesson.');state.lessons=state.lessons.filter(l=>l.id!==id);state.tasks=state.tasks.filter(t=>t.lessonId!==id);if(!state.lessons.length)throw Error('Keep at least one lesson.');commit('Lesson deleted.');});break;case 'lesson-task':{let l=state.lessons.find(x=>x.id===id);if(state.tasks.some(t=>t.lessonId===id&&t.date===today())){toast('Already in today’s tasks.');break;}state.tasks.push({id:uid(),title:l.title,date:today(),done:false,lessonId:id});$('#dialog').close();commit('Added to today’s focus.');break;}case 'task':modal('One small task',`<div class="form-grid"><label class="full">What will you work on?<input name="title" maxlength="200" required placeholder="e.g. Solve 10 quadratic equations"></label><label>Date<input type="date" name="date" required value="${today()}"></label></div>`,f=>{let title=f.get('title').trim();if(!title)throw Error('Enter a task.');state.tasks.push({id:uid(),title,date:f.get('date'),done:false});commit('Task added.');});break;case 'delete-task':state.tasks=state.tasks.filter(t=>t.id!==id);commit('Task removed.');break;case 'log':modal('Count your focused time',`<div class="form-grid"><label>Date<input type="date" name="date" required max="${today()}" value="${today()}"></label><label>Focused minutes<input type="number" name="minutes" required min="1" max="720" value="30"></label><label class="full">What did you study?<input name="note" maxlength="200" placeholder="Optional note"></label></div>`,f=>{state.sessions.push({id:uid(),date:f.get('date'),minutes:Number(f.get('minutes')),note:f.get('note')});commit('Study time logged.');});break;case 'upcoming-test-result':{
+case 'read-textbook':await openTextbook(n.dataset.book,Number(n.dataset.printedPage));break;case 'lesson-quiz':showLessonQuiz(id);break;case 'add-lesson':lessonDialog();break;case 'open-lesson':lessonDialog(id);break;case 'next':{let l=recommendations(state)[0];if(l)lessonDialog(l.id);else toast('All caught up. Add a timed practice paper.');break;}case 'review':{let l=state.lessons.find(x=>x.id===id);l.lastReview=today();l.reviewCount=(l.reviewCount||0)+1;l.reviewDue=addDays(today(),[1,3,7,14,30][Math.min(l.reviewCount,4)]);commit('Review saved. Next: '+fmt(l.reviewDue));break;}case 'targets':targetsDialog();break;case 'score':scoreDialog();break;case 'edit-score':scoreDialog(id);break;case 'delete-score':confirmAction('Delete this result?','This removes the result from all calculations.',()=>{state.scores=state.scores.filter(s=>s.id!==id);commit('Result deleted.');});break;case 'delete-lesson':confirmAction('Delete this lesson?','This removes its progress and linked tasks. Export a backup first if needed.',()=>{if(state.lessons.length<=1)throw Error('Keep at least one lesson.');state.lessons=state.lessons.filter(l=>l.id!==id);state.tasks=state.tasks.filter(t=>t.lessonId!==id);if(!state.lessons.length)throw Error('Keep at least one lesson.');commit('Lesson deleted.');});break;case 'lesson-task':{let l=state.lessons.find(x=>x.id===id);if(state.tasks.some(t=>t.lessonId===id&&t.date===today())){toast('Already in today’s tasks.');break;}state.tasks.push({id:uid(),title:l.title,date:today(),done:false,lessonId:id});$('#dialog').close();commit('Added to today’s focus.');break;}case 'task':modal('One small task',`<div class="form-grid"><label class="full">What will you work on?<input name="title" maxlength="200" required placeholder="e.g. Solve 10 quadratic equations"></label><label>Date<input type="date" name="date" required value="${today()}"></label></div>`,f=>{let title=f.get('title').trim();if(!title)throw Error('Enter a task.');state.tasks.push({id:uid(),title,date:f.get('date'),done:false});commit('Task added.');});break;case 'delete-task':state.tasks=state.tasks.filter(t=>t.id!==id);commit('Task removed.');break;case 'log':modal('Count your focused time',`<div class="form-grid"><label>Date<input type="date" name="date" required max="${today()}" value="${today()}"></label><label>Focused minutes<input type="number" name="minutes" required min="1" max="720" value="30"></label><label class="full">What did you study?<input name="note" maxlength="200" placeholder="Optional note"></label></div>`,f=>{state.sessions.push({id:uid(),date:f.get('date'),minutes:Number(f.get('minutes')),note:f.get('note')});commit('Study time logged.');});break;case 'upcoming-test-result':{
  const test=state.upcomingTests?.find(item=>item.id===id);
  const subject=n.dataset.subject;
  if(!test||test.date>today()||!GROUPS.some(([group])=>group===subject))break;
@@ -683,4 +690,21 @@ function installHelp(){modal('Install SSC Compass',`<p><b>Android:</b> Open this
 
 $('#focus-screen').addEventListener('cancel',e=>{e.preventDefault();leaveFocus();});
 setInterval(updateFocus,1000);setInterval(checkReminder,15000);document.addEventListener('visibilitychange',()=>{if(!document.hidden){updateFocus();keepAwake();checkReminder();}});
-render();persist();updateFocus();checkReminder();if(cloud.session)connect();if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>toast('Offline installation unavailable in this browser.'));
+function openSharedQuiz(){
+ const encoded=location.hash.startsWith('#quiz=')?location.hash.slice(6):'';
+ if(!encoded)return;
+ history.replaceState(history.state,'',location.pathname+location.search);
+ try{
+  if(encoded.length>50000)throw Error();
+  const bytes=Uint8Array.from(atob(encoded),character=>character.charCodeAt(0));
+  const quiz=JSON.parse(new TextDecoder().decode(bytes));
+  const chapter=CHAPTERS.get(quiz.lessonId);
+  const lesson=chapter&&state.lessons.find(item=>chapterFor(item)?.lessonId===chapter.lessonId);
+  if(!lesson)throw Error();
+  page='lessons';
+  render();
+  showLessonQuiz(lesson.id,quiz);
+ }catch{toast('This quiz link is invalid or its lesson is unavailable.');}
+}
+
+render();persist();updateFocus();checkReminder();openSharedQuiz();if(cloud.session)connect();if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>toast('Offline installation unavailable in this browser.'));

@@ -6,10 +6,12 @@
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "start": "python -m http.server 4173 --directory dist",
-    "test:rules": "node --test tests/firestore.integration.mjs"
+    "test:rules": "node --test tests/firestore.integration.mjs",
+    "postinstall": "node scripts/build-pdf-viewer.mjs"
   },
   "dependencies": {
     "pdf-lib": "1.17.1",
+    "pdfjs-dist": "6.5.438",
     "unpdf": "2.1.0"
   }
 }

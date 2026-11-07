@@ -18,10 +18,10 @@ export const CHAPTERS=new Map();
 let index=0;
 for(const [code,title,offset,starts] of books){
  const url=`https://ebooks.ebalbharati.in/pdfs/${code}.pdf`;
- TEXTBOOKS.push({code,title,url});
+ TEXTBOOKS.push({code,title,url,offset});
  for(let i=0;i<starts.length-1;i++){
   const lesson=SYLLABUS[index++];
-  CHAPTERS.set(lesson.id,{lessonId:lesson.id,title:lesson.title,subject:lesson.subject,book:title,url,offset,
+  CHAPTERS.set(lesson.id,{lessonId:lesson.id,title:lesson.title,subject:lesson.subject,book:title,code,url,offset,
    first:starts[i],last:starts[i+1]-1});
  }
 }

@@ -31,3 +31,9 @@
 .test-lesson-picker{max-height:36vh;overflow:auto}.test-lesson-choice{padding:.25rem}.test-lesson-choice[hidden]{display:none}
 
 .textbook-link{color:var(--green);font-weight:600}.quiz-feedback{margin-top:.5rem}.quiz-feedback[hidden]{display:none}
+
+#textbook-reader{width:min(96vw,66rem);max-width:96vw;max-height:94dvh}
+#textbook-reader .reader-controls{margin-top:.65rem;align-items:end}
+#reader-page{width:6rem}
+.reader-canvas{overflow:auto;max-height:68dvh;background:#e9eee8}
+.reader-canvas canvas{display:block;margin-inline:auto;max-width:none}
