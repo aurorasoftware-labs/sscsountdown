@@ -4,7 +4,7 @@ export const PAPERS=[
  ['marathi','Marathi','2027-02-18','other'],['english','English','2027-02-22','english'],['hindi','Hindi','2027-02-24','hindi'],
  ['math1','Maths 1','2027-03-02','math','Algebra'],['math2','Maths 2','2027-03-04','math','Geometry'],
  ['science1','Science 1','2027-03-08','science','Part 1'],['science2','Science 2','2027-03-11','science','Part 2'],
- ['history','History','2027-03-13','history'],['geography','Geography','2027-03-15','geo']
+ ['history','History & Political Science','2027-03-13','history'],['geography','Geography','2027-03-15','geo']
 ].map(([id,title,date,subject,part],index)=>({
  id,title,date,subject,part,
  endHour:index<3?14:13,

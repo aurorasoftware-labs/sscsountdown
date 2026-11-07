@@ -4,9 +4,9 @@ import {seed,validate,upgrade} from '../dist/core.js';
 import {boardPapers,paperCoverage,paperTime,activity,focusRemaining,focusLog,reminderFor,paperCalendar} from '../dist/study-tools.js';
 
 test('all nine supplied dates are correct and existing plans get the timetable without losing progress',()=>{
- const s=seed();s.settings.boards='2027-02-15';s.settings.other='Other language';s.lessons[0].stage=2;
+ const s=seed();s.settings.boards='2027-02-15';s.settings.other='Other language';const algebra=s.lessons.find(l=>l.part==='Algebra');algebra.stage=2;
  upgrade(validate(s));
- assert.equal(s.settings.boards,'2027-02-18');assert.equal(s.settings.other,'Marathi');assert.equal(s.lessons[0].stage,2);
+ assert.equal(s.settings.boards,'2027-02-18');assert.equal(s.settings.other,'Marathi');assert.equal(algebra.stage,2);
  assert.deepEqual(boardPapers(s).map(p=>p.date),['2027-02-18','2027-02-22','2027-02-24','2027-03-02','2027-03-04','2027-03-08','2027-03-11','2027-03-13','2027-03-15']);
  assert.deepEqual(paperCoverage(s,boardPapers(s).find(p=>p.id==='math1')),{done:1,total:6});
  assert.deepEqual(paperCoverage(s,boardPapers(s).find(p=>p.id==='math2')),{done:0,total:7});

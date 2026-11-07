@@ -4,7 +4,7 @@ Live app: https://ssc-compass-2027-asl.web.app
 
 Source: https://github.com/aurorasoftware-labs/sscsountdown
 
-A dependency-free, mobile-first Maharashtra SSC study PWA. `dist/` is the complete deployable app; no build or paid API is required. Starts with 128 editable lesson/skill units and no fictional progress or marks.
+A dependency-free, mobile-first Maharashtra SSC study PWA. `dist/` is the complete deployable app; no build or paid API is required. Starts with 124 editable textbook entries and no fictional progress or marks.
 
 ## Open locally
 
@@ -101,8 +101,7 @@ Daily reminders are opt-in and shown once per date per device when the app is ru
 ## Syllabus / sources / uncertainties (checked 6 November 2026)
 
 - CapCompass's accessible page describes a study planner/mentor, simple onboarding and Google/file plan restoration: https://capcompass.app/. This app uses a calm companion-like approach and its own design; no proprietary assets were copied.
-- Official Balbharati library: https://books.ebalbharati.in/ebook.aspx. Science I contents were directly available at https://ebooks.ebalbharati.in/pdfs/1003000265.pdf. Science II: https://ebooks.ebalbharati.in/pdfs/1003000270.pdf. Other textbook PDF fetches were size-limited; core chapter lists are starter headings to check, not a claim of an audited 2026–27 syllabus.
-- English headings and all Hindi/other-language slots are flagged “Check book”. The 128 count includes grammar/writing/practice units; it is not an official chapter count. Exact language book/course choices remain unknown.
+- The default catalogue follows the ten supplied textbook indexes, including the listed language supplements and writing/grammar sections. Santvani is grouped as one entry. History and Political Science share one board paper. The answer keys in the Maths indexes are excluded.
 - Maharashtra board: https://www.mahahsscboard.in/. The older official rules PDF lists six compulsory subjects: https://www.mahahsscboard.org.in/img/rules_db2a7f8176.pdf. Current 2027 best-five/pass/admission details were not authoritatively established. Best-five is configurable and must be confirmed with school. A secondary explanatory source describes top five of six: https://targetpublications.org/blog/maharashtra-ssc-2026-best-of-5-rule-explained.
 - Prelims **10 December 2026** and boards **15 February 2027** are user-supplied planning dates, not independently verified official timetables. At 6 November these are 34 and 101 days away.
 - Official Firebase references: https://firebase.google.com/docs/reference/rest/auth, https://firebase.google.com/docs/firestore/use-rest-api, https://firebase.google.com/docs/firestore/security/rules-conditions, https://firebase.google.com/docs/hosting/full-config, https://firebase.google.com/docs/firestore/quotas.

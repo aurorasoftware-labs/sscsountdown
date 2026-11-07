@@ -19,15 +19,16 @@ test('old results and unrated lessons remain valid', () => {
 
 test('lesson ratings and result diagnostics survive backup restoration', () => {
   const state = seed();
-  state.lessons[0].strength = 'weak';
+  const lesson = state.lessons.find(l => l.subject === 'math');
+  lesson.strength = 'weak';
   state.scores.push({
     ...practiceResult(),
-    lessons: [{id: state.lessons[0].id, title: state.lessons[0].title, subject: 'math'}],
+    lessons: [{id: lesson.id, title: lesson.title, subject: 'math'}],
     losses: {calculation: 3, concept: 4}, errorNote: 'Used the wrong formula.',
   });
   const restored = validate(JSON.parse(JSON.stringify(state)));
-  assert.equal(restored.lessons[0].strength, 'weak');
-  assert.equal(restored.scores[0].lessons[0].title, state.lessons[0].title);
+  assert.equal(restored.lessons.find(l => l.id === lesson.id).strength, 'weak');
+  assert.equal(restored.scores[0].lessons[0].title, lesson.title);
   assert.deepEqual(lossSummary(restored.scores[0]), {lost: 8, allocated: 7, unclassified: 1});
   restored.lessons.shift();
   assert.equal(validate(restored), restored, 'Historical result lessons survive deletion from the tracker');
