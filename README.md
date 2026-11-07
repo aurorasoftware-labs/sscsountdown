@@ -1,5 +1,7 @@
 # SSC Compass
 
+Live app: https://ssc-compass-2027-asl.web.app
+
 Source: https://github.com/aurorasoftware-labs/sscsountdown
 
 A dependency-free, mobile-first Maharashtra SSC study PWA. `dist/` is the complete deployable app; no build or paid API is required. Starts with 128 editable lesson/skill units and no fictional progress or marks.
@@ -16,15 +18,21 @@ Open http://localhost:4173. Do not open index.html directly: ES modules and the 
 
 ## Put it on her phone
 
-Upload the **contents of dist** to a static HTTPS host, for example Cloudflare Pages direct upload or Netlify manual deploy. No build command; publish directory `dist` if deploying from a repository. Check the host's current free-tier terms. Any HTTPS static host works. Use a dedicated root origin (the manifest and app identity assume a root deployment).
+The configured app is deployed at **https://ssc-compass-2027-asl.web.app**. Open it on her phone, then Settings → sign in or create an account. No Firebase keys need to be entered.
+
+For another deployment, upload the **contents of dist** to a static HTTPS host, for example Cloudflare Pages direct upload or Netlify manual deploy. No build command; publish directory `dist` if deploying from a repository. Check the host's current free-tier terms. Any HTTPS static host works. Use a dedicated root origin (the manifest and app identity assume a root deployment).
 
 Visit once online. Android Chrome: menu → Install app. iPhone Safari: Share → Add to Home Screen. Offline data lives in browser storage, which may be cleared by browser settings or the operating system; export regular backups. Private browsing is unsuitable for durable storage.
 
-The supplied Sites publication is owner-private by default. To give a student independent phone access, deploy `dist` on your own HTTPS host, or deliberately configure the site's audience through Sites. Firebase accounts remain separate from hosting access.
+The Firebase Hosting address works independently of ChatGPT sign-in. The older Sites preview remains owner-private. Student plans are protected by Firebase Authentication and owner-only database rules.
 
-## Connect your Firebase project (cloud sync)
+## Connected Firebase project
 
-1. In [Firebase Console](https://console.firebase.google.com/) create or choose a dedicated project. No project has been invented or connected automatically. Check the current Spark/free-plan quotas before deployment; this app needs no Cloud Functions, Admin SDK or billing-only service.
+Project **ssc-compass-2027-asl** (SSC Compass 2027) is owned by your account. Its default Firestore database is Standard edition, Mumbai (`asia-south1`), with free tier enabled. Email/password sign-in, owner-only rules, indexes and Hosting are deployed. `dist/firebase-config.js` contains only the public web configuration; `.firebaserc` selects this real project.
+
+For a separate installation:
+
+1. In [Firebase Console](https://console.firebase.google.com/) create or choose a dedicated project. Use your own separate project if you are forking this app. Check the current Spark/free-plan quotas before deployment; this app needs no Cloud Functions, Admin SDK or billing-only service.
 2. Register a **Web app**. Copy its public `projectId` and `apiKey`. These are web-app identifiers, not private credentials. Never put a service-account JSON, private key or admin credential in the app or repository.
 3. Enable **Authentication → Sign-in method → Email/Password**. Set an appropriate password policy; signup must satisfy the project policy. Password reset uses Firebase's email templates. Add the eventual app domain to the appropriate Firebase Auth authorized-domain settings.
 4. Create **Cloud Firestore**, Standard/native mode, the **(default)** database. Start in production mode. Choose its location deliberately; it cannot simply be changed later. Deploy the supplied `firestore.rules`. Do not use open test-mode rules.
@@ -37,11 +45,11 @@ The supplied Sites publication is owner-private by default. To give a student in
 Install the official Firebase CLI using the official guide. From this repository:
 
 ```sh
-npx firebase-tools login
-npx firebase-tools deploy --project YOUR_ACTUAL_PROJECT_ID --only firestore:rules,hosting
+npx -y firebase-tools@latest login
+npx -y firebase-tools@latest deploy --project ssc-compass-2027-asl --only "auth,firestore,hosting"
 ```
 
-The tracked `firebase.json` publishes `dist/`, deploys the owner-only rules, and avoids stale caching of the service worker. No project ID is guessed or baked into `.firebaserc`. Firebase Hosting provides the live HTTPS address after a successful deployment. Never claim the example project ID is a connected project.
+The tracked `firebase.json` publishes `dist/`, deploys the owner-only rules, and avoids stale caching of the service worker. The committed `.firebaserc` points to the real study project. Forks must select their own project and replace the public web configuration before deployment.
 
 ### Sync, conflicts and security
 
@@ -55,14 +63,18 @@ Sync checks after edits, on returning online/visible, and every minute while ope
 
 A dedicated service worker caches only same-origin app resources, never Firebase traffic. Local records are namespaced by Firebase project and UID to prevent accidental mixing across projects. No analytics or third-party scripts are loaded.
 
-### Verify before relying on cloud sync
+### Verification completed 7 November 2026
+
+All 14 automated tests and 11 live Firebase checks passed: email/password signup, first save, owner read, unauthenticated denial, other-account read/write denial, collection-list denial, sign-in restoring the same plan, second-version save and stale-write rejection. Temporary test accounts were removed. The live app uses the real Mumbai backend.
+
+### Repeat verification
 
 The dependency-free unit suite mocks Firebase HTTP responses; it checks token refresh, owner document paths, commit preconditions, permissions, conflicts, signup/signin, reset requests and size limits. It does **not** prove deployed rules or real authentication work.
 
 For real integration testing, use two test accounts on the configured project. User B must not read/write user A's plan. Verify offline edits sync after reconnecting and simultaneous edits show a conflict. An optional emulator suite is included:
 
 ```sh
-npx firebase-tools emulators:exec --project demo-ssc-compass --only auth,firestore "npm run test:rules"
+npx -y firebase-tools@latest emulators:exec --project demo-ssc-compass --only auth,firestore "npm run test:rules"
 ```
 
 The Firebase emulator requires a supported Java runtime; see current official requirements. These tests only target localhost and a demo project. No production database is cleared. Emulator and deployed-project integration results must be reported separately from unit-test results.

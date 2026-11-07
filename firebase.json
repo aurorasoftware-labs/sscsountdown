@@ -1,6 +1,9 @@
 {
   "firestore": {
-    "rules": "firestore.rules"
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json",
+    "database": "(default)",
+    "location": "asia-south1"
   },
   "hosting": {
     "public": "dist",
@@ -53,6 +56,11 @@
     "singleProjectMode": true,
     "auth": {
       "port": 9099
+    }
+  },
+  "auth": {
+    "providers": {
+      "emailPassword": true
     }
   }
 }
