@@ -27,3 +27,5 @@
 .schedule-windows{display:flex;flex-wrap:wrap;gap:.4rem}
 
 .reminder-time-row{align-items:end;margin-block:.35rem}
+
+.test-lesson-picker{max-height:36vh;overflow:auto}.test-lesson-choice{padding:.25rem}.test-lesson-choice[hidden]{display:none}

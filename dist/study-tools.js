@@ -32,9 +32,10 @@ export function reminderFor(s,date,time){
 }
 export function reminderMessage(s,date){
  const papers=boardPapers(s).filter(p=>p.date===date||p.date===addDays(date,1));
+ const tests=(s.upcomingTests||[]).filter(test=>test.date===date||test.date===addDays(date,1));
  const due=s.lessons.filter(l=>l.reviewDue&&l.reviewDue<=date).length;
  const tasks=s.tasks.filter(t=>!t.done&&t.date<=date).length;
- return [...papers.map(p=>`${p.title}: ${p.date===date?'today':'tomorrow'}`),...(due?[`${due} revisions due`]:[]),...(tasks?[`${tasks} open tasks`]:[])].join(' · ')||'Check today’s plan and choose your next study block.';
+ return [...papers.map(p=>`${p.title}: ${p.date===date?'today':'tomorrow'}`),...tests.map(test=>`${test.title}: ${test.date===date?'today':'tomorrow'}`),...(due?[`${due} revisions due`]:[]),...(tasks?[`${tasks} open tasks`]:[])].join(' · ')||'Check today’s plan and choose your next study block.';
 }
 export function paperCalendar(s,now=new Date()){
  const stamp=now.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
