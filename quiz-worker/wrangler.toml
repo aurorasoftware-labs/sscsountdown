@@ -4,7 +4,8 @@ compatibility_date = "2026-11-07"
 
 [vars]
 APP_ORIGIN = "https://ssc-compass-2027-asl.web.app"
-OPENAI_MODEL = "gpt-5.4-mini"
+GROQ_MODEL = "openai/gpt-oss-20b"
+OPENROUTER_MODEL = "qwen/qwen3.5-35b-a3b"
 
 [[ratelimits]]
 name = "QUIZ_LIMIT"

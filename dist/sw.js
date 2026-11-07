@@ -1,4 +1,4 @@
-const CACHE='ssc-compass-shell-v16-textbook-quiz';
+const CACHE='ssc-compass-shell-v17-quiz-providers';
 const FILES=['./','./index.html','./privacy.html','./terms.html','./style.css','./app.js','./core.js','./schedule.js','./upcoming-tests.js','./reminders.js','./syllabus.js','./textbooks.js','./quiz-config.js','./result-tools.js','./study-tools.js','./cloud.js','./firebase-config.js','./icon.svg','./icon-192.png','./icon-512.png','./manifest.webmanifest'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('ssc-compass-shell-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));

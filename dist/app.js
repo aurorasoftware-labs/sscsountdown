@@ -102,27 +102,26 @@ function showLessonQuiz(id){
   <p><b>${esc(chapter.title)}</b> · ${esc(chapter.book)} · pp. ${chapter.first}–${chapter.last}</p>
   <p class="subheading">Generate five questions from a set of pages in this chapter. AI can make mistakes. Check the linked textbook page if an answer looks wrong.</p>
   ${!quizConfig.endpoint?'<p class="notice">The AI quiz service needs to be connected. The textbook is available below.</p>':
-   !cloud.session?'<p class="notice">Sign in with an account that has quiz access to generate questions.</p>':
+   !cloud.session?'<p class="notice">Sign in with an authorised adult account to generate a quiz.</p>':
    '<button type="button" id="generate-quiz">Generate 5 questions</button>'}
   <p><a href="${chapter.url}#page=${chapter.first+chapter.offset}" target="_blank" rel="noopener noreferrer">Read this chapter</a></p>
+  <label>Open a shared quiz file<input type="file" id="quiz-import" accept=".json,application/json"></label>
   <div id="quiz-output" aria-live="polite"></div>
   <p><a href="mailto:support.aurorasoftwarelabs@gmail.com?subject=SSC%20Compass%20quiz%20feedback">Report a quiz issue</a></p>`;
  dialog.showModal();
  const generate=$('#generate-quiz'),output=$('#quiz-output');
- if(!generate)return;
- generate.addEventListener('click',async()=>{
-  generate.disabled=true;
-  output.textContent='Generating questions from the textbook…';
-  try{
-   const token=await cloud.quizAuthToken();
-   const response=await fetch(quizConfig.endpoint,{
-    method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
-    body:JSON.stringify({lessonId:chapter.lessonId}),signal:AbortSignal.timeout(125000)
-   });
-   const quiz=await response.json();
-   if(!response.ok)throw Error(quiz.error||'Quiz service unavailable.');
-   if(!Array.isArray(quiz.questions)||quiz.questions.length!==5)throw Error('The quiz response was incomplete.');
-   output.innerHTML=`<form id="quiz-answers"><p class="subheading">Source pages ${Number(quiz.first)}–${Number(quiz.last)}</p>
+ const displayQuiz=quiz=>{
+  const text=(value,max)=>typeof value==='string'&&value.trim().length>0&&value.length<=max;
+  if(!quiz||quiz.lessonId!==chapter.lessonId||!Number.isInteger(quiz.first)||!Number.isInteger(quiz.last)
+   ||quiz.first<chapter.first||quiz.last>chapter.last||quiz.first>quiz.last
+   ||!Array.isArray(quiz.questions)||quiz.questions.length!==5
+   ||!quiz.questions.every(item=>item&&text(item.question,700)&&text(item.explanation,1000)
+    &&Array.isArray(item.options)&&item.options.length===4&&item.options.every(option=>text(option,300))
+    &&Number.isInteger(item.answer)&&item.answer>=0&&item.answer<4
+    &&Number.isInteger(item.page)&&item.page>=quiz.first&&item.page<=quiz.last)){
+   throw Error('This quiz file is invalid or belongs to a different chapter.');
+  }
+  output.innerHTML=`<form id="quiz-answers"><p class="subheading">Source pages ${Number(quiz.first)}–${Number(quiz.last)}</p>
     ${quiz.questions.map((question,index)=>`<fieldset class="spacer">
      <legend>${index+1}. ${esc(question.question)}</legend>
      ${question.options.map((option,answer)=>`<label class="inline-check">
@@ -143,6 +142,36 @@ function showLessonQuiz(id){
     });
     output.querySelector('.quiz-total').textContent=`${correct} / ${quiz.questions.length} correct`;
    });
+ };
+ $('#quiz-import').addEventListener('change',async event=>{
+  const file=event.target.files[0];
+  if(!file)return;
+  try{
+   if(file.size>50000)throw Error('This quiz file is too large.');
+   displayQuiz(JSON.parse(await file.text()));
+  }catch(error){output.textContent=error.message;}
+ });
+ if(!generate)return;
+ generate.addEventListener('click',async()=>{
+  generate.disabled=true;
+  output.textContent='Generating questions from the textbook…';
+  try{
+   const token=await cloud.quizAuthToken();
+   const response=await fetch(quizConfig.endpoint,{
+    method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
+    body:JSON.stringify({lessonId:chapter.lessonId}),signal:AbortSignal.timeout(125000)
+   });
+   const quiz=await response.json();
+   if(!response.ok)throw Error(quiz.error||'Quiz service unavailable.');
+   if(!Array.isArray(quiz.questions)||quiz.questions.length!==5)throw Error('The quiz response was incomplete.');
+   quiz.lessonId=chapter.lessonId;
+   displayQuiz(quiz);
+   const share=document.createElement('button');
+   share.type='button';
+   share.className='secondary';
+   share.textContent='Download quiz to share';
+   share.addEventListener('click',()=>download('ssc-'+chapter.lessonId+'-quiz.json',JSON.stringify(quiz)));
+   output.prepend(share);
    generate.textContent='Generate a fresh quiz';
   }catch(error){output.textContent=error.message;}
   finally{generate.disabled=false;}
