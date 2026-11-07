@@ -1,34 +1,35 @@
-export const SYLLABUS_VERSION = 20261107;
+const FIRST_INDEX_VERSION = 20261107;
+export const SYLLABUS_VERSION = 20261108;
 
 const english = [
-  'Where the Mind is Without Fear', 'The Thief’s Story', 'On Wings of Courage',
+  'Where the Mind is Without Fear…', 'The Thief’s Story', 'On Wings of Courage',
   'All the World’s a Stage', 'Joan of Arc', 'The Alchemy of Nature',
   'Animals', 'Three Questions', 'Connecting the Dots', 'The Pulley',
   'Let’s March!', 'Science and Spirituality', 'Night of the Scorpion',
   'The Night I Met Einstein', 'Stephen Hawking', 'The Will to Win',
-  'Unbeatable Super Mom—Mary Kom', 'The Concert',
+  'Unbeatable Super Mom-Mary Kom', 'The Concert',
   'A Thing of Beauty is a Joy For Ever', 'The Luncheon', 'World Heritage',
   'The Height of the Ridiculous', 'The Old Man and the Sea: Book Review', 'The Gift of the Magi',
 ];
 
 const marathi = [
-  ['भाग १', 'तू बुद्धी दे'],
+  ['भाग १ · प्रार्थना', 'तू बुद्धी दे'],
   ['भाग १', 'संतवाणी — (अ) अंकिला मी दास तुझा; (आ) योगी सर्वकाळ सुखदाता'],
   ['भाग १', 'शाल'], ['भाग १', 'उपास'],
   ['भाग १ · स्थूलवाचन', 'मोठे होत असलेल्या मुलांनो…'],
-  ['भाग २', 'दोन दिवस'], ['भाग २', 'चुडीवाला'],
+  ['भाग २ · कविता', 'दोन दिवस'], ['भाग २', 'चुडीवाला'],
   ['भाग २', 'फूटप्रिन्ट्स'], ['भाग २', 'ऊर्जाशक्तीचा जागर'],
   ['भाग २ · स्थूलवाचन', 'जाता अस्ताला'],
-  ['भाग ३', 'औक्षण'], ['भाग ३', 'रंग साहित्याचे'], ['भाग ३', 'जंगल डायरी'],
-  ['भाग ३', 'रंग मजेचे रंग उद्याचे'], ['भाग ३ · स्थूलवाचन', 'जगणं कॅक्टसचं'],
-  ['भाग ४', 'हिरवंगार झाडासारखं'], ['भाग ४', 'बीज पेरले गेले'],
-  ['भाग ४', 'खरा नागरिक'], ['भाग ४', 'स्वप्न करू साकार'],
+  ['भाग ३ · कविता', 'औक्षण'], ['भाग ३', 'रंग साहित्याचे'], ['भाग ३', 'जंगल डायरी'],
+  ['भाग ३ · कविता', 'रंग मजेचे रंग उद्याचे'], ['भाग ३ · स्थूलवाचन', 'जगणं कॅक्टसचं'],
+  ['भाग ४ · कविता', 'हिरवंगार झाडासारखं'], ['भाग ४', 'बीज पेरले गेले'],
+  ['भाग ४', 'खरा नागरिक'], ['भाग ४ · कविता', 'स्वप्न करू साकार'],
   ['भाग ४ · स्थूलवाचन', 'व्युत्पत्ती कोश'], ['भाग ४ · लेखन', 'उपयोजित लेखन'],
 ];
 
 const hindi = [
   'भारत महिमा', 'लक्ष्मी', 'वाह रे! हमदर्द', 'मन (पूरक पठन)',
-  'गोवा: जैसा मैंने देखा', 'गिरिधर नागर', 'खुला आकाश (पूरक पठन)',
+  'गोवा : जैसा मैंने देखा', 'गिरिधर नागर', 'खुला आकाश (पूरक पठन)',
   'गजल', 'रीढ़ की हड्डी', 'ठेस (पूरक पठन)', 'कृषक का गान',
   'बरषहिं जलद', 'दो लघुकथाएँ (पूरक पठन)', 'श्रम साधना', 'छापा',
   'ईमानदारी की प्रतिमूर्ति', 'हम इस धरती की संतति हैं (पूरक पठन)',
@@ -66,13 +67,13 @@ export const SYLLABUS = [
     index < 11 ? 'पहली इकाई' : index < 22 ? 'दूसरी इकाई' : 'व्याकरण एवं रचना', title,
   )),
   ...book('science', 'Part 1', [
-    'Gravitation', 'Periodic Classification of Elements', 'Chemical Reactions and Equations',
+    'Gravitation', 'Periodic Classification of Element', 'Chemical Reactions and Equations',
     'Effects of Electric Current', 'Heat', 'Refraction of Light', 'Lenses',
     'Metallurgy', 'Carbon Compounds', 'Space Missions',
   ]),
   ...book('science', 'Part 2', [
-    'Heredity and Evolution', 'Life Processes in Living Organisms – Part 1',
-    'Life Processes in Living Organisms – Part 2', 'Environmental Management',
+    'Heredity and Evolution', 'Life Processes in Living Organisms Part - 1',
+    'Life Processes in Living Organisms Part - 2', 'Environmental Management',
     'Towards Green Energy', 'Animal Classification', 'Introduction to Microbiology',
     'Cell Biology and Biotechnology', 'Social Health', 'Disaster Management',
   ]),
@@ -124,6 +125,26 @@ function isPlaceholder(lesson) {
 
 export function migrateSyllabus(state, priorities) {
   if (state.settings.syllabusVersion === SYLLABUS_VERSION) return state;
+  if (state.settings.syllabusVersion === FIRST_INDEX_VERSION) {
+    const corrections = [
+      ['Where the Mind is Without Fear', 'Where the Mind is Without Fear…'],
+      ['Unbeatable Super Mom—Mary Kom', 'Unbeatable Super Mom-Mary Kom'],
+      ['गोवा: जैसा मैंने देखा', 'गोवा : जैसा मैंने देखा'],
+      ['Periodic Classification of Elements', 'Periodic Classification of Element'],
+      ['Life Processes in Living Organisms – Part 1', 'Life Processes in Living Organisms Part - 1'],
+      ['Life Processes in Living Organisms – Part 2', 'Life Processes in Living Organisms Part - 2'],
+    ];
+    const titles = new Map(corrections);
+    for (const lesson of state.lessons) {
+      const corrected = titles.get(lesson.title) || lesson.title;
+      const indexed = SYLLABUS.find(item => item.subject === lesson.subject && item.title === corrected);
+      if (!indexed) continue;
+      lesson.title = corrected;
+      if (lesson.subject === 'other' && /^भाग [१२३४]$/.test(lesson.part)) lesson.part = indexed.part;
+    }
+    state.settings.syllabusVersion = SYLLABUS_VERSION;
+    return state;
+  }
   const previous = state.lessons;
   const used = new Set();
   const defaults = freshLessons(priorities);

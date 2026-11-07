@@ -44,3 +44,21 @@ test('migration preserves known lesson IDs, results, custom lessons and displace
  const serialized=JSON.stringify(upgraded);
  assert.equal(JSON.stringify(upgrade(validate(JSON.parse(serialized)))),serialized);
 });
+test('updating the first indexed release keeps progress and exposes Marathi reading and writing',()=>{
+ const s=seed();
+ s.settings.syllabusVersion=20261107;
+ const science=s.lessons.find(l=>l.id==='science-Part1-1');
+ science.title='Periodic Classification of Elements';
+ science.stage=3;
+ science.strength='weak';
+ upgrade(validate(s));
+ assert.equal(science.title,'Periodic Classification of Element');
+ assert.equal(science.stage,3);
+ assert.equal(science.strength,'weak');
+ const marathi=s.lessons.filter(l=>l.subject==='other');
+ assert.equal(marathi.length,21);
+ assert.deepEqual(marathi.filter(l=>l.part.endsWith('स्थूलवाचन')).map(l=>l.title),[
+  'मोठे होत असलेल्या मुलांनो…','जाता अस्ताला','जगणं कॅक्टसचं','व्युत्पत्ती कोश',
+ ]);
+ assert.ok(marathi.some(l=>l.title==='उपयोजित लेखन'));
+});
