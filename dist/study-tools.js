@@ -28,6 +28,9 @@ export function focusRemaining(run,now=Date.now()){return Math.max(0,Math.ceil((
 export function focusLog(run,now=Date.now()){const minutes=Math.floor(Math.max(0,Math.min(run.end,now)-run.start)/60000);return minutes?{id:run.id,date:run.date,minutes,subject:run.subject,note:run.note,source:'focus'}:null;}
 export function reminderFor(s,date,time){
  if(!s.settings.reminders||time<(s.settings.reminderTime||'18:00'))return null;
+ return reminderMessage(s,date);
+}
+export function reminderMessage(s,date){
  const papers=boardPapers(s).filter(p=>p.date===date||p.date===addDays(date,1));
  const due=s.lessons.filter(l=>l.reviewDue&&l.reviewDue<=date).length;
  const tasks=s.tasks.filter(t=>!t.done&&t.date<=date).length;

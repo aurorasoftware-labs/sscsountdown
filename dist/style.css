@@ -25,3 +25,5 @@
 .policy-content a{color:var(--green);text-decoration:underline;text-underline-offset:.2em;overflow-wrap:anywhere}
 
 .schedule-windows{display:flex;flex-wrap:wrap;gap:.4rem}
+
+.reminder-time-row{align-items:end;margin-block:.35rem}

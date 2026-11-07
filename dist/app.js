@@ -1,9 +1,10 @@
+import {MAX_REMINDER_TIMES,validateReminderSettings,reminderTimes,reminderMinute,reminderClock,reminderSlots,reminderCalendar} from './reminders.js';
 import {WEEKDAYS,dayAvailability,earlyLesson,validateSchedule} from './schedule.js';
 import {SYLLABUS_VERSION} from './syllabus.js';
 import {STAGES,WEIGHTS,SUBJECTS,GROUPS,today,days,addDays,uid,seed,validate,stats,coverageProjection,aggregate,scoreProjection,weekStart,recommendations,sleepHours,dailyPlan,earlyGoal,upgrade} from './core.js';
 import * as cloud from './cloud.js';
 import {STRENGTHS, LOSS_REASONS, lessonMatchesSubject, validateResultDetails, lossSummary} from './result-tools.js';
-import {PAPERS,boardPapers,paperCoverage,paperTime,PAPER_CHECKS,activity,focusRemaining,focusLog,reminderFor,paperCalendar} from './study-tools.js';
+import {PAPERS,boardPapers,paperCoverage,paperTime,PAPER_CHECKS,activity,focusRemaining,focusLog,reminderMessage,paperCalendar} from './study-tools.js';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let scope=cloud.accountKey(),state,version=0,dirty=false,conflict=false,ready=!cloud.session,syncing=false,syncText=cloud.session?'Connecting…':'Saved on this device',saveTimer,installPrompt;
 let page='today',subjectFilter='all',stageFilter='all',query='',scoreExam='',insightExam='prelims',timer;
@@ -340,7 +341,24 @@ function targetsDialog(){let p=state.settings;modal('Set a sustainable pace',`<d
 function download(filename,text,type='application/json'){const url=URL.createObjectURL(new Blob([text],{type}));let a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function exportData(){download('ssc-compass-'+today()+'.json',JSON.stringify(state,null,2));}
 function confirmAction(title,desc,action){modal(title,`<p>${desc}</p>`,action);}
-document.addEventListener('click',async e=>{let n=e.target.closest('[data-page],[data-action]');if(!n)return;try{if(n.dataset.page){page=n.dataset.page;render();window.scrollTo(0,0);return;}let a=n.dataset.action,id=n.dataset.id;if(['today','lessons','plan','settings','focus'].includes(a)){page=a;render();return;}switch(a){case 'account':page='settings';render();$('#account-section').scrollIntoView({block:'start'});break;case 'papers':page='plan';render();$('#board-papers').scrollIntoView({block:'start'});break;case 'edit-paper':editPaper(id);break;case 'paper-calendar':download('ssc-board-papers.ics',paperCalendar(state),'text/calendar');break;case 'enable-alerts':await enableAlerts();break;case 'focus-return':showFocus();break;case 'focus-hide':await leaveFocus();break;case 'focus-fullscreen':try{if(!document.fullscreenElement&&document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();else if(!document.fullscreenElement)toast('Full screen is not available on this browser.');}catch{toast('Full screen is not available on this browser.');}break;case 'focus-end':await finishFocus(false);break;case 'delete-session':confirmAction('Remove study log?', 'This removes this session from your activity totals.',()=>{state.sessions=state.sessions.filter(x=>x.id!==id);commit('Study log removed.');});break;case 'close':$('#dialog').close();break;case 'marathi-lessons':
+document.addEventListener('click',async e=>{let n=e.target.closest('[data-page],[data-action]');if(!n)return;try{if(n.dataset.page){page=n.dataset.page;render();window.scrollTo(0,0);return;}let a=n.dataset.action,id=n.dataset.id;if(['today','lessons','plan','settings','focus'].includes(a)){page=a;render();return;}switch(a){case 'account':page='settings';render();$('#account-section').scrollIntoView({block:'start'});break;case 'papers':page='plan';render();$('#board-papers').scrollIntoView({block:'start'});break;case 'edit-paper':editPaper(id);break;case 'paper-calendar':download('ssc-board-papers.ics',paperCalendar(state),'text/calendar');break;case 'add-reminder-time':{
+ const rows=$('#reminder-time-rows');
+ if(rows.children.length>=MAX_REMINDER_TIMES)throw Error('You can set up to 16 times.');
+ rows.insertAdjacentHTML('beforeend',reminderTimeRow(''));
+ rows.lastElementChild.querySelector('input').focus();
+ break;
+}
+case 'remove-reminder-time':n.closest('.reminder-time-row').remove();break;
+case 'reminder-calendar':{
+ const current=today();
+ const dates=Array.from({length:8},(_,i)=>addDays(current,i-1));
+ const calendar=reminderCalendar(state.settings,dates);
+ if(!calendar.includes('BEGIN:VEVENT'))throw Error('Save reminders with available time before downloading.');
+ download('ssc-study-reminders.ics',calendar,'text/calendar');
+ toast('Import into a separate phone calendar and allow calendar alerts.');
+ break;
+}
+case 'enable-alerts':await enableAlerts();break;case 'focus-return':showFocus();break;case 'focus-hide':await leaveFocus();break;case 'focus-fullscreen':try{if(!document.fullscreenElement&&document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();else if(!document.fullscreenElement)toast('Full screen is not available on this browser.');}catch{toast('Full screen is not available on this browser.');}break;case 'focus-end':await finishFocus(false);break;case 'delete-session':confirmAction('Remove study log?', 'This removes this session from your activity totals.',()=>{state.sessions=state.sessions.filter(x=>x.id!==id);commit('Study log removed.');});break;case 'close':$('#dialog').close();break;case 'marathi-lessons':
  subjectFilter='other';
  stageFilter='all';
  query='';
@@ -376,7 +394,13 @@ if(n.id==='schedule-free'){
 }
 if(n.id==='subject-filter'){subjectFilter=n.value;render();}if(n.id==='stage-filter'){stageFilter=n.value;render();}if(n.id==='exam-filter'){scoreExam=n.value;render();}if(n.id==='score-mode'){state.settings.mode=n.value;commit();}if(n.id==='import-file'){const file=n.files[0];if(!file)return;if(file.size>5e6)throw Error('Backup is too large (5 MB maximum).');let data=upgrade(validate(JSON.parse(await file.text())));confirmAction('Restore this backup?','This replaces the current plan and will sync to your account if signed in. Export the current plan first.',()=>{state=data;commit('Backup restored.');});}}catch(err){toast(err.message);}});
 document.addEventListener('input',e=>{if(e.target.id==='search'){query=e.target.value;let pos=e.target.selectionStart;render();$('#search').focus();$('#search').setSelectionRange(pos,pos);}});
-document.addEventListener('submit',async e=>{let id=e.target.id;if(!['settings-form','cloud-config','firebase-auth','registration-form','reset-password','focus-form','reminders-form'].includes(id))return;e.preventDefault();let f=new FormData(e.target),submit=e.submitter||e.target.querySelector('button');submit.disabled=true;try{if(id==='focus-form'){const minutes=Number(f.get('minutes'));if(getFocus())throw Error('A focus session is already running.');if(!Number.isInteger(minutes)||minutes<1||minutes>180)throw Error('Choose 1–180 minutes.');const start=Date.now();localStorage.setItem(focusKey(),JSON.stringify({id:uid(),start,end:start+minutes*60000,date:today(),subject:f.get('subject'),note:f.get('note').trim()}));render();showFocus();}if(id==='reminders-form'){state.settings.reminders=f.has('enabled');state.settings.reminderTime=f.get('time');commit('Reminder preference saved.');checkReminder();}if(id==='settings-form'){if(f.get('prelims')>f.get('boards'))throw Error('Prelims must be on or before boards.');state.settings={...state.settings,...Object.fromEntries(f)};commit('Settings saved.');}if(id==='cloud-config'){cloud.configure(f.get('projectId'),f.get('apiKey'));toast('Firebase connection saved. Enable Email/Password and deploy firestore.rules before signing in.');render();}if(id==='reset-password'){await cloud.resetPassword(f.get('email').trim());toast('If an account exists, check your email for reset instructions.');}if(id==='firebase-auth'||id==='registration-form'){const registration=id==='registration-form',email=f.get('email').trim();const profile=registration?Object.fromEntries(['name','school','board'].map(k=>[k,f.get(k).trim()])):null;if(profile&&Object.values(profile).some(v=>!v))throw Error('Enter the student name, school and board.');await cloud.signIn(email,f.get('password'),registration);sessionStorage.setItem('ssc-email',email);scope=cloud.accountKey();conflict=false;readLocal();if(profile){Object.assign(state.settings,profile);dirty=true;persist();}await connect();toast(registration?'Account created. Your profile is saved.':'Signed in. Device-only progress can be copied in Settings.');}}catch(err){toast(err.message);}finally{submit.disabled=false;}});
+document.addEventListener('submit',async e=>{let id=e.target.id;if(!['settings-form','cloud-config','firebase-auth','registration-form','reset-password','focus-form','reminders-form'].includes(id))return;e.preventDefault();let f=new FormData(e.target),submit=e.submitter||e.target.querySelector('button');submit.disabled=true;try{if(id==='focus-form'){const minutes=Number(f.get('minutes'));if(getFocus())throw Error('A focus session is already running.');if(!Number.isInteger(minutes)||minutes<1||minutes>180)throw Error('Choose 1–180 minutes.');const start=Date.now();localStorage.setItem(focusKey(),JSON.stringify({id:uid(),start,end:start+minutes*60000,date:today(),subject:f.get('subject'),note:f.get('note').trim()}));render();showFocus();}if(id==='reminders-form'){const times=f.getAll('time').sort();
+ const enabled=f.has('enabled'),randomReminders=f.has('random');
+ if(enabled&&!times.length)throw Error('Add a time or turn off fixed reminders.');
+ validateReminderSettings({reminderTimes:times,randomReminders});
+ Object.assign(state.settings,{reminders:enabled,reminderTimes:times,randomReminders});
+ commit('Reminder preferences saved.');
+ checkReminder();}if(id==='settings-form'){if(f.get('prelims')>f.get('boards'))throw Error('Prelims must be on or before boards.');state.settings={...state.settings,...Object.fromEntries(f)};commit('Settings saved.');}if(id==='cloud-config'){cloud.configure(f.get('projectId'),f.get('apiKey'));toast('Firebase connection saved. Enable Email/Password and deploy firestore.rules before signing in.');render();}if(id==='reset-password'){await cloud.resetPassword(f.get('email').trim());toast('If an account exists, check your email for reset instructions.');}if(id==='firebase-auth'||id==='registration-form'){const registration=id==='registration-form',email=f.get('email').trim();const profile=registration?Object.fromEntries(['name','school','board'].map(k=>[k,f.get(k).trim()])):null;if(profile&&Object.values(profile).some(v=>!v))throw Error('Enter the student name, school and board.');await cloud.signIn(email,f.get('password'),registration);sessionStorage.setItem('ssc-email',email);scope=cloud.accountKey();conflict=false;readLocal();if(profile){Object.assign(state.settings,profile);dirty=true;persist();}await connect();toast(registration?'Account created. Your profile is saved.':'Signed in. Device-only progress can be copied in Settings.');}}catch(err){toast(err.message);}finally{submit.disabled=false;}});
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;render();});window.addEventListener('online',()=>ready?sync():connect());window.addEventListener('offline',()=>{syncText=cloud.session?'Offline · saved here':'Offline · device only';render();});document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(cloud.session){if(ready)sync();else connect();}else render();}});window.addEventListener('storage',e=>{if(e.key===storageKey()){conflict=true;syncText='Another tab changed this plan. Export then reload.';render();}});setInterval(()=>{if(cloud.session&&document.visibilityState==='visible')sync();},60000);
 function boardPanel(){const d=today();return `<section class="card exam-card" id="board-papers"><div class="card-head"><div><span class="eyebrow">2027 BOARD EXAMS</span><h2>Paper-by-paper countdown</h2></div>${button('Calendar ↓','paper-calendar','ghost')}</div><p class="subheading">Dates and exam times from the Maharashtra SSC Feb–Mar 2027 timetable. Confirm paper codes, reporting times and venue with your school. History and Political Science share one paper (9 History and 5 Political Science chapters in the default plan). Paper marks here are separate from the six-subject aggregate.</p><div class="paper-list">${boardPapers(state).map(p=>{const n=days(d,p.date),c=paperCoverage(state,p),checks=state.settings.paperChecks?.[p.id]||{},r=state.settings.paperResults?.[p.id];return `<article class="paper-row"><div class="paper-top"><div><h3>${p.title}</h3><small>${fmt(p.date)} · Code ${p.code}<br>${paperTime(p)}<br>${c.done}/${c.total} units covered${r?' · '+r.mark+'/'+r.max+' marks':''}</small></div><div class="row"><span class="pill ${n>=0&&n<=7?'gold':''}">${n<0?'Past':n===0?'Today':n===1?'Tomorrow':n+' days'}</span>${button('Edit','edit-paper','textbutton',`data-id="${p.id}" aria-label="Edit ${p.title} paper"`)}</div></div><div class="track"><span style="width:${percent(c.done,c.total)}%"></span></div><div class="paper-checks">${PAPER_CHECKS.map(([id,label])=>`<label><input type="checkbox" data-paper="${p.id}" data-check="${id}" ${checks[id]?'checked':''} aria-label="${p.title}: ${label}">${label}</label>`).join('')}</div></article>`;}).join('')}</div></section>`;}
 function editPaper(id){const p=boardPapers(state).find(x=>x.id===id),r=state.settings.paperResults?.[id];if(!p)return;modal(p.title+' paper',`<div class="form-grid"><label class="full">Exam date<input type="date" name="date" value="${p.date}" required></label><label>Marks (optional)<input type="number" name="mark" min="0" step="0.5" value="${r?.mark??''}"></label><label>Maximum marks<input type="number" name="max" min="0.5" max="1000" step="0.5" value="${r?.max??''}"></label></div>`,f=>{const mark=f.get('mark'),max=f.get('max');if(f.get('date')<state.settings.prelims)throw Error('A board paper cannot be before prelims.');if((mark==='')!==(max==='')||mark!==''&&Number(mark)>Number(max))throw Error('Enter both marks and maximum, and keep marks within the maximum.');(state.settings.paperDates??={})[id]=f.get('date');const results=state.settings.paperResults??={};if(mark==='')delete results[id];else results[id]={mark:Number(mark),max:Number(max)};state.settings.boards=boardPapers(state)[0].date;commit('Paper updated.');});}
@@ -392,10 +416,61 @@ async function finishFocus(complete){const r=getFocus();if(!r||finishing)return;
 function updateFocus(){const r=getFocus();if(!r){if($('#focus-screen').open)leaveFocus();return;}const seconds=focusRemaining(r),clock=$('#focus-clock');if(clock)clock.textContent=`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;if(seconds===0)finishFocus(true).catch(e=>toast(e.message));}
 async function sendAlert(title,body,tag){if(!('Notification' in window)||Notification.permission!=='granted'||!navigator.serviceWorker)return;try{const reg=await navigator.serviceWorker.getRegistration();await reg?.showNotification(title,{body,tag,icon:'icon-192.png'});}catch{}}
 async function enableAlerts(){if(!('Notification' in window))return toast('Use calendar reminders on this device. On iPhone, try adding the app to your Home Screen first.');try{const permission=await Notification.requestPermission();toast(permission==='granted'?'Notifications enabled on this device.':'Browser notifications are off. Calendar reminders still work.');}catch{toast('Browser notifications are unavailable here.');}}
-function checkReminder(){const d=today(),t=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date());const body=reminderFor(state,d,t),key=storageKey()+'-reminded';if(!body||localStorage.getItem(key)===d||document.hidden)return;localStorage.setItem(key,d);toast(body);sendAlert('Your SSC study reminder',body,'study-'+d);}
-function reminderPanel(){return `<section class="card settings-block"><h2>Reminders</h2><p class="subheading">One daily reminder per device, with upcoming papers, overdue revisions and open tasks. It appears when the app is running. For alerts with the app closed, import the board calendar into your phone calendar.</p><form id="reminders-form" class="form-grid"><label class="inline-check"><input type="checkbox" name="enabled" ${state.settings.reminders?'checked':''}>Daily study reminder</label><label>Reminder time (India)<input type="time" name="time" value="${state.settings.reminderTime||'18:00'}" required></label><button>Save reminders</button></form><div class="row spacer">${button('Enable notifications','enable-alerts','ghost')}${button('Board calendar ↓','paper-calendar','ghost')}</div></section>`;}
+function checkReminder(){
+ if(!state.settings.reminders&&!state.settings.randomReminders)return;
+ const date=today();
+ const clock=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date());
+ const minute=reminderMinute(clock);
+ for(const [day,current] of [[date,minute],[addDays(date,-1),minute+1440]]){
+  const openWindow=dayAvailability(state.settings,day).free.find(({from,to})=>current>=from&&current<to);
+  if(!openWindow)continue;
+  // Store by actual India calendar date so midnight does not redeliver a slot.
+  const storage=storageKey()+'-reminder-deliveries';
+  let delivered;
+  try{delivered=JSON.parse(localStorage.getItem(storage)||'{}');}catch{delivered={};}
+  const due=reminderSlots(state.settings,day).filter(slot=>
+   slot.minute>=openWindow.from&&current-slot.minute>=0&&current-slot.minute<=1
+   &&!delivered[day]?.includes(slot.minute));
+  if(!due.length)continue;
+  if(document.hidden&&(!('Notification' in window)||Notification.permission!=='granted'))continue;
+  for(const slot of due)(delivered[day]??=[]).push(slot.minute);
+  const yesterday=addDays(date,-1);
+  for(const saved of Object.keys(delivered))if(saved!==date&&saved!==yesterday)delete delivered[saved];
+  localStorage.setItem(storage,JSON.stringify(delivered));
+  const body=reminderMessage(state,day);
+  if(!document.hidden)toast(body);
+  for(const slot of due){
+   sendAlert(slot.kind==='fixed'?'SSC Compass study reminder':'SSC Compass study nudge',
+    body,'study-'+day+'-'+slot.minute);
+  }
+ }
+}
+function reminderTimeRow(time){
+ return `<div class="reminder-time-row row wrap">
+  <label>Reminder time (India)<input type="time" name="time" value="${esc(time)}" required></label>
+  ${button('Remove time','remove-reminder-time','ghost','type="button"')}
+ </div>`;
+}
+function reminderPanel(){
+ const slots=reminderSlots(state.settings,today());
+ const nudges=slots.filter(slot=>slot.kind==='nudge').length;
+ return `<section class="card settings-block"><h2>Reminders</h2>
+  <p class="subheading">Set your own times or get eight randomized nudges spread through open hours. Times inside activity blocks or sleep are skipped. Holidays use their free-day schedule.</p>
+  <form id="reminders-form" class="form-grid">
+   <label class="inline-check"><input type="checkbox" name="enabled" ${state.settings.reminders?'checked':''}>Fixed daily reminders</label>
+   <label class="inline-check"><input type="checkbox" name="random" ${state.settings.randomReminders?'checked':''}>Eight daily nudges</label>
+   <div id="reminder-time-rows" class="full">${reminderTimes(state.settings).map(reminderTimeRow).join('')}</div>
+   <div class="full row wrap">${button('+ Reminder time','add-reminder-time','ghost','type="button"')}<button type="submit">Save reminders</button></div>
+  </form>
+  ${state.settings.reminders||state.settings.randomReminders?`<p class="subheading spacer"><b>Today’s saved schedule</b> · ${nudges} nudges<br>
+   ${slots.length?slots.map(({minute,kind})=>`${reminderClock(minute)}${minute>=1440?' next day':''}${kind==='nudge'?' (nudge)':''}`).join(' · '):'No reminders fit today.'}
+   ${state.settings.randomReminders&&nudges<8?' Fewer than eight open minutes remain available for distinct nudges.':''}</p>`:''}
+  <p class="subheading spacer">Browser alerts depend on the app running and notification permission. For alerts while it’s closed, import the next seven days into your phone calendar and enable calendar alerts. Re-export after schedule changes and replace the old import.</p>
+  <div class="row wrap">${button('Enable notifications','enable-alerts','ghost')}${button('Study reminder calendar ↓','reminder-calendar','ghost')}${button('Board calendar ↓','paper-calendar','ghost')}</div>
+ </section>`;
+}
 function installHelp(){modal('Install SSC Compass',`<p><b>Android:</b> Open this link in Chrome, then choose Install app or Add to Home screen in the browser menu.</p><p><b>iPhone:</b> Open in Safari, tap Share → Add to Home Screen.</p><p>Open it once online before studying offline.</p>`,()=>{});$('#modal-form button[type="submit"]').textContent='Got it';}
 
 $('#focus-screen').addEventListener('cancel',e=>{e.preventDefault();leaveFocus();});
-setInterval(updateFocus,1000);setInterval(checkReminder,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden){updateFocus();keepAwake();checkReminder();}});
+setInterval(updateFocus,1000);setInterval(checkReminder,15000);document.addEventListener('visibilitychange',()=>{if(!document.hidden){updateFocus();keepAwake();checkReminder();}});
 render();persist();updateFocus();checkReminder();if(cloud.session)connect();if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>toast('Offline installation unavailable in this browser.'));

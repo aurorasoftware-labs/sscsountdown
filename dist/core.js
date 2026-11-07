@@ -1,3 +1,4 @@
+import {validateReminderSettings} from './reminders.js';
 import {validateSchedule} from './schedule.js';
 import {freshLessons, migrateSyllabus, SYLLABUS_VERSION} from './syllabus.js';
 import {STRENGTHS, validateResultDetails} from './result-tools.js';
@@ -26,6 +27,7 @@ if(new Set(s.scores.map(x=>x.id)).size!==s.scores.length||new Set(s.tasks.map(x=
 for(const k of ['prelimsBuffer','boardsBuffer'])if(p[k]!==undefined&&(!Number.isInteger(p[k])||p[k]<0||p[k]>60))throw Error('Invalid early-finish buffer.');for(const [d,x] of Object.entries(p.overrides))if(!date(d)||!Number.isFinite(x)||x<0||x>30)throw Error('Invalid daily target.');
 for(const k of ['name','school','board'])if(p[k]!==undefined&&(typeof p[k]!=='string'||p[k].length>100))throw Error('Invalid profile.');
 if(p.reminderTime!==undefined&&!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(p.reminderTime))throw Error('Invalid reminder time.');
+validateReminderSettings(p);
 if(p.reminders!==undefined&&typeof p.reminders!=='boolean')throw Error('Invalid reminder setting.');
 const paperIds=['marathi','english','hindi','math1','math2','science1','science2','history','geography'];
 for(const k of ['paperDates','paperChecks','paperResults'])if(p[k]!==undefined&&(!p[k]||typeof p[k]!=='object'||Array.isArray(p[k])||Object.keys(p[k]).some(id=>!paperIds.includes(id))))throw Error('Invalid exam tracking data.');
