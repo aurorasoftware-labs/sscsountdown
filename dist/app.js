@@ -50,8 +50,8 @@ function render(){const nav=[['today','◈','Today'],['lessons','▤','Lessons']
 <div class="footer-legal">
  <span>© 2026 Aurora Software Labs</span>
  <nav aria-label="Legal">
-  <a href="https://aurorasoftwarelabs.pages.dev/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
-  <a href="https://aurorasoftwarelabs.pages.dev/terms" target="_blank" rel="noopener noreferrer">Terms of Use</a>
+  <a href="./privacy.html">Privacy Policy</a>
+  <a href="./terms.html">Terms of Use</a>
  </nav>
 </div></footer></main></div>`;}
 function subjectProgress(sections=studySections(true)){
