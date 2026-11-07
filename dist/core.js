@@ -1,3 +1,4 @@
+import {validateSchedule} from './schedule.js';
 import {freshLessons, migrateSyllabus, SYLLABUS_VERSION} from './syllabus.js';
 import {STRENGTHS, validateResultDetails} from './result-tools.js';
 export const STAGES=['Not started','Learning','Practising','Revising','Mastered'];
@@ -16,6 +17,7 @@ if(s.archivedLessons!==undefined&&(!Array.isArray(s.archivedLessons)||s.archived
 const allLessons=[...s.lessons,...(s.archivedLessons||[])];
 for(const lesson of allLessons)if(!lesson||(lesson.strength!==undefined&&!STRENGTHS.some(([id])=>id===lesson.strength)))throw Error('Invalid lesson strength.');for(const result of s.scores)validateResultDetails(result);
 const date=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&Number.isFinite(Date.parse(d))&&new Date(d+'T12:00:00Z').toISOString().slice(0,10)===d;
+validateSchedule(s.settings,date);
 const safeId=x=>typeof x==='string'&&/^[A-Za-z0-9 _-]{1,120}$/.test(x);const ids=new Set();for(const l of allLessons){if(!l||l.lastReview&&!date(l.lastReview)||!safeId(l.id)||ids.has(l.id)||!SUBJECTS.some(x=>x.id===l.subject)||typeof l.title!=='string'||l.title.length>300||!Number.isInteger(l.stage)||l.stage<0||l.stage>4||!Number.isFinite(l.minutes)||l.minutes<5||l.minutes>600||![1,2,3].includes(l.priority)||l.covered&&!date(l.covered)||l.reviewDue&&!date(l.reviewDue))throw Error('Invalid lesson data.');ids.add(l.id);}
 for(const x of s.scores)if(!GROUPS.some(g=>g[0]===x.subject)||!['Practice','Prelim','Board'].includes(x.kind)||!safeId(x.id)||typeof x.exam!=='string'||!date(x.date)||!Number.isFinite(x.mark)||!Number.isFinite(x.max)||x.max<=0||x.mark<0||x.mark>x.max)throw Error('Invalid score data.');
 for(const t of s.tasks)if(!safeId(t.id)||typeof t.title!=='string'||!date(t.date)||typeof t.done!=='boolean')throw Error('Invalid task data.');
