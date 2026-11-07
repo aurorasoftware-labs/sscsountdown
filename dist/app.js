@@ -1,3 +1,5 @@
+import {TEXTBOOKS,chapterFor} from './textbooks.js';
+import quizConfig from './quiz-config.js';
 import {TEST_PREP_DAYS,testPrepPlan,testReadiness} from './upcoming-tests.js';
 import {MAX_REMINDER_TIMES,validateReminderSettings,reminderTimes,reminderMinute,reminderClock,reminderSlots,reminderCalendar} from './reminders.js';
 import {WEEKDAYS,dayAvailability,earlyLesson,validateSchedule} from './schedule.js';
@@ -78,7 +80,75 @@ function archivedLessonPanel(){
  if(!archived.length)return '';
  return `<details class="card"><summary>Archived starter entries (${archived.length})</summary><p class="subheading">These old entries keep their progress and are outside the current lesson total. Restore an entry to track it again.</p><div class="lesson-list">${archived.map(l=>`<div class="lesson"><div><b>${esc(l.title)}</b><small>${esc(lessonName(l))} · ${STAGES[l.stage]} · ${esc(STRENGTHS.find(([value])=>value===l.strength)?.[1]||'Not rated')}</small></div>${button('Restore','restore-archived','secondary',`data-id="${esc(l.id)}"`)}</div>`).join('')}</div></details>`;
 }
-function lessonsPage(){let list=state.lessons.filter(l=>(subjectFilter==='all'||lessonSection(l)===subjectFilter)&&(stageFilter==='all'||l.stage===Number(stageFilter))&&`${l.title} ${l.part}`.toLowerCase().includes(query.toLowerCase()));return `${heading('Every lesson, one place.',`${state.lessons.length} editable units · Learn. Practise. Come back stronger.`,button('+ Lesson','add-lesson'))}<div class="notice"><strong>From your textbook indexes.</strong> The default plan has 124 study entries. History and Political Science are sections of the same board paper.<div class="actions">${button('Marathi · मराठी','marathi-lessons','secondary','lang="mr"')}</div></div><div class="toolbar"><input id="search" aria-label="Search lessons" placeholder="Search a chapter or skill…" value="${esc(query)}"><select id="subject-filter" aria-label="Filter subject">${subjectOptions(subjectFilter)}</select><select id="stage-filter" aria-label="Filter stage"><option value="all">Every stage</option>${stageOptions(Number(stageFilter))}</select></div><p class="subheading">${list.length} matching units · First-pass coverage starts at Practising.</p>${archivedLessonPanel()}${lessonSections(list)}`;}
+function textbookLibrary(){
+ return `<details class="card spacer"><summary>Textbook library · ${TEXTBOOKS.length} Balbharati books</summary>
+  <p class="subheading">Open the official PDFs or jump to a chapter from its lesson card.</p>
+  <ul>${TEXTBOOKS.map(book=>`<li><a href="${book.url}" target="_blank" rel="noopener noreferrer">${esc(book.title)}</a></li>`).join('')}</ul>
+ </details>`;
+}
+function textbookActions(lesson){
+ const chapter=chapterFor(lesson);
+ if(!chapter)return '';
+ return `<a class="textbook-link" href="${chapter.url}#page=${chapter.first+chapter.offset}" target="_blank" rel="noopener noreferrer">Textbook</a>
+  ${button('AI quiz','lesson-quiz','ghost',`data-id="${esc(lesson.id)}"`)}`;
+}
+function showLessonQuiz(id){
+ const lesson=state.lessons.find(item=>item.id===id);
+ const chapter=lesson&&chapterFor(lesson);
+ if(!chapter)return;
+ const dialog=$('#dialog');
+ dialog.innerHTML=`<div class="row between"><h2>AI practice quiz</h2>
+  ${button('Close','close','ghost','type="button"')}</div>
+  <p><b>${esc(chapter.title)}</b> · ${esc(chapter.book)} · pp. ${chapter.first}–${chapter.last}</p>
+  <p class="subheading">Generate five questions from a set of pages in this chapter. AI can make mistakes. Check the linked textbook page if an answer looks wrong.</p>
+  ${!quizConfig.endpoint?'<p class="notice">The AI quiz service needs to be connected. The textbook is available below.</p>':
+   !cloud.session?'<p class="notice">Sign in with an account that has quiz access to generate questions.</p>':
+   '<button type="button" id="generate-quiz">Generate 5 questions</button>'}
+  <p><a href="${chapter.url}#page=${chapter.first+chapter.offset}" target="_blank" rel="noopener noreferrer">Read this chapter</a></p>
+  <div id="quiz-output" aria-live="polite"></div>
+  <p><a href="mailto:support.aurorasoftwarelabs@gmail.com?subject=SSC%20Compass%20quiz%20feedback">Report a quiz issue</a></p>`;
+ dialog.showModal();
+ const generate=$('#generate-quiz'),output=$('#quiz-output');
+ if(!generate)return;
+ generate.addEventListener('click',async()=>{
+  generate.disabled=true;
+  output.textContent='Generating questions from the textbook…';
+  try{
+   const token=await cloud.quizAuthToken();
+   const response=await fetch(quizConfig.endpoint,{
+    method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
+    body:JSON.stringify({lessonId:chapter.lessonId}),signal:AbortSignal.timeout(125000)
+   });
+   const quiz=await response.json();
+   if(!response.ok)throw Error(quiz.error||'Quiz service unavailable.');
+   if(!Array.isArray(quiz.questions)||quiz.questions.length!==5)throw Error('The quiz response was incomplete.');
+   output.innerHTML=`<form id="quiz-answers"><p class="subheading">Source pages ${Number(quiz.first)}–${Number(quiz.last)}</p>
+    ${quiz.questions.map((question,index)=>`<fieldset class="spacer">
+     <legend>${index+1}. ${esc(question.question)}</legend>
+     ${question.options.map((option,answer)=>`<label class="inline-check">
+      <input type="radio" name="question-${index}" value="${answer}" required>${esc(option)}</label>`).join('')}
+     <div class="quiz-feedback" hidden></div>
+    </fieldset>`).join('')}<button type="submit">Check answers</button><p class="quiz-total" role="status"></p></form>`;
+   output.querySelector('form').addEventListener('submit',event=>{
+    event.preventDefault();
+    const choices=new FormData(event.target);
+    let correct=0;
+    output.querySelectorAll('.quiz-feedback').forEach((feedback,index)=>{
+     const question=quiz.questions[index];
+     const right=Number(choices.get('question-'+index))===question.answer;
+     correct+=Number(right);
+     feedback.innerHTML=`<b>${right?'Correct':'Correct answer: '+esc(question.options[question.answer])}</b>
+      <p>${esc(question.explanation)} <a href="${chapter.url}#page=${Number(question.page)+chapter.offset}" target="_blank" rel="noopener noreferrer">Textbook p. ${Number(question.page)}</a></p>`;
+     feedback.hidden=false;
+    });
+    output.querySelector('.quiz-total').textContent=`${correct} / ${quiz.questions.length} correct`;
+   });
+   generate.textContent='Generate a fresh quiz';
+  }catch(error){output.textContent=error.message;}
+  finally{generate.disabled=false;}
+ });
+}
+function lessonsPage(){let list=state.lessons.filter(l=>(subjectFilter==='all'||lessonSection(l)===subjectFilter)&&(stageFilter==='all'||l.stage===Number(stageFilter))&&`${l.title} ${l.part}`.toLowerCase().includes(query.toLowerCase()));return `${heading('Every lesson, one place.',`${state.lessons.length} editable units · Learn. Practise. Come back stronger.`,button('+ Lesson','add-lesson'))}<div class="notice"><strong>From your textbook indexes.</strong> The default plan has 124 study entries. History and Political Science are sections of the same board paper.<div class="actions">${button('Marathi · मराठी','marathi-lessons','secondary','lang="mr"')}</div></div><div class="toolbar"><input id="search" aria-label="Search lessons" placeholder="Search a chapter or skill…" value="${esc(query)}"><select id="subject-filter" aria-label="Filter subject">${subjectOptions(subjectFilter)}</select><select id="stage-filter" aria-label="Filter stage"><option value="all">Every stage</option>${stageOptions(Number(stageFilter))}</select></div><p class="subheading">${list.length} matching units · First-pass coverage starts at Practising.</p>${textbookLibrary()}${archivedLessonPanel()}${lessonSections(list)}`;}
 function lessonSections(list){
  if(!list.length)return '<div class="empty">No lessons match. Try another filter.</div>';
  return studySections(true).map(section=>{
@@ -111,6 +181,7 @@ function lessonRow(lesson){
    <label>Strength<select data-strength="${lesson.id}" aria-label="Strength for ${title}">${strengthOptions}</select></label>
   </div>
   <div class="actions">
+   ${textbookActions(lesson)}
    ${lesson.stage>=2?button('↻ Review','review','secondary',`data-id="${lesson.id}"`):''}
    ${button('Edit','open-lesson','ghost',`data-id="${lesson.id}"`)}
   </div>
@@ -442,7 +513,7 @@ case 'enable-alerts':await enableAlerts();break;case 'focus-return':showFocus();
  render();
  $('#subject-filter').focus();
  break;
-case 'add-lesson':lessonDialog();break;case 'open-lesson':lessonDialog(id);break;case 'next':{let l=recommendations(state)[0];if(l)lessonDialog(l.id);else toast('All caught up. Add a timed practice paper.');break;}case 'review':{let l=state.lessons.find(x=>x.id===id);l.lastReview=today();l.reviewCount=(l.reviewCount||0)+1;l.reviewDue=addDays(today(),[1,3,7,14,30][Math.min(l.reviewCount,4)]);commit('Review saved. Next: '+fmt(l.reviewDue));break;}case 'targets':targetsDialog();break;case 'score':scoreDialog();break;case 'edit-score':scoreDialog(id);break;case 'delete-score':confirmAction('Delete this result?','This removes the result from all calculations.',()=>{state.scores=state.scores.filter(s=>s.id!==id);commit('Result deleted.');});break;case 'delete-lesson':confirmAction('Delete this lesson?','This removes its progress and linked tasks. Export a backup first if needed.',()=>{if(state.lessons.length<=1)throw Error('Keep at least one lesson.');state.lessons=state.lessons.filter(l=>l.id!==id);state.tasks=state.tasks.filter(t=>t.lessonId!==id);if(!state.lessons.length)throw Error('Keep at least one lesson.');commit('Lesson deleted.');});break;case 'lesson-task':{let l=state.lessons.find(x=>x.id===id);if(state.tasks.some(t=>t.lessonId===id&&t.date===today())){toast('Already in today’s tasks.');break;}state.tasks.push({id:uid(),title:l.title,date:today(),done:false,lessonId:id});$('#dialog').close();commit('Added to today’s focus.');break;}case 'task':modal('One small task',`<div class="form-grid"><label class="full">What will you work on?<input name="title" maxlength="200" required placeholder="e.g. Solve 10 quadratic equations"></label><label>Date<input type="date" name="date" required value="${today()}"></label></div>`,f=>{let title=f.get('title').trim();if(!title)throw Error('Enter a task.');state.tasks.push({id:uid(),title,date:f.get('date'),done:false});commit('Task added.');});break;case 'delete-task':state.tasks=state.tasks.filter(t=>t.id!==id);commit('Task removed.');break;case 'log':modal('Count your focused time',`<div class="form-grid"><label>Date<input type="date" name="date" required max="${today()}" value="${today()}"></label><label>Focused minutes<input type="number" name="minutes" required min="1" max="720" value="30"></label><label class="full">What did you study?<input name="note" maxlength="200" placeholder="Optional note"></label></div>`,f=>{state.sessions.push({id:uid(),date:f.get('date'),minutes:Number(f.get('minutes')),note:f.get('note')});commit('Study time logged.');});break;case 'upcoming-test-result':{
+case 'lesson-quiz':showLessonQuiz(id);break;case 'add-lesson':lessonDialog();break;case 'open-lesson':lessonDialog(id);break;case 'next':{let l=recommendations(state)[0];if(l)lessonDialog(l.id);else toast('All caught up. Add a timed practice paper.');break;}case 'review':{let l=state.lessons.find(x=>x.id===id);l.lastReview=today();l.reviewCount=(l.reviewCount||0)+1;l.reviewDue=addDays(today(),[1,3,7,14,30][Math.min(l.reviewCount,4)]);commit('Review saved. Next: '+fmt(l.reviewDue));break;}case 'targets':targetsDialog();break;case 'score':scoreDialog();break;case 'edit-score':scoreDialog(id);break;case 'delete-score':confirmAction('Delete this result?','This removes the result from all calculations.',()=>{state.scores=state.scores.filter(s=>s.id!==id);commit('Result deleted.');});break;case 'delete-lesson':confirmAction('Delete this lesson?','This removes its progress and linked tasks. Export a backup first if needed.',()=>{if(state.lessons.length<=1)throw Error('Keep at least one lesson.');state.lessons=state.lessons.filter(l=>l.id!==id);state.tasks=state.tasks.filter(t=>t.lessonId!==id);if(!state.lessons.length)throw Error('Keep at least one lesson.');commit('Lesson deleted.');});break;case 'lesson-task':{let l=state.lessons.find(x=>x.id===id);if(state.tasks.some(t=>t.lessonId===id&&t.date===today())){toast('Already in today’s tasks.');break;}state.tasks.push({id:uid(),title:l.title,date:today(),done:false,lessonId:id});$('#dialog').close();commit('Added to today’s focus.');break;}case 'task':modal('One small task',`<div class="form-grid"><label class="full">What will you work on?<input name="title" maxlength="200" required placeholder="e.g. Solve 10 quadratic equations"></label><label>Date<input type="date" name="date" required value="${today()}"></label></div>`,f=>{let title=f.get('title').trim();if(!title)throw Error('Enter a task.');state.tasks.push({id:uid(),title,date:f.get('date'),done:false});commit('Task added.');});break;case 'delete-task':state.tasks=state.tasks.filter(t=>t.id!==id);commit('Task removed.');break;case 'log':modal('Count your focused time',`<div class="form-grid"><label>Date<input type="date" name="date" required max="${today()}" value="${today()}"></label><label>Focused minutes<input type="number" name="minutes" required min="1" max="720" value="30"></label><label class="full">What did you study?<input name="note" maxlength="200" placeholder="Optional note"></label></div>`,f=>{state.sessions.push({id:uid(),date:f.get('date'),minutes:Number(f.get('minutes')),note:f.get('note')});commit('Study time logged.');});break;case 'upcoming-test-result':{
  const test=state.upcomingTests?.find(item=>item.id===id);
  const subject=n.dataset.subject;
  if(!test||test.date>today()||!GROUPS.some(([group])=>group===subject))break;

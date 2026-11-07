@@ -29,3 +29,5 @@
 .reminder-time-row{align-items:end;margin-block:.35rem}
 
 .test-lesson-picker{max-height:36vh;overflow:auto}.test-lesson-choice{padding:.25rem}.test-lesson-choice[hidden]{display:none}
+
+.textbook-link{color:var(--green);font-weight:600}.quiz-feedback{margin-top:.5rem}.quiz-feedback[hidden]{display:none}

@@ -1,0 +1,12 @@
+name = "ssc-compass-quiz"
+main = "index.js"
+compatibility_date = "2026-11-07"
+
+[vars]
+APP_ORIGIN = "https://ssc-compass-2027-asl.web.app"
+OPENAI_MODEL = "gpt-5.4-mini"
+
+[[ratelimits]]
+name = "QUIZ_LIMIT"
+namespace_id = "20271107"
+simple = { limit = 2, period = 60 }

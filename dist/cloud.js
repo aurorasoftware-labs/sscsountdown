@@ -12,6 +12,11 @@ async function request(url,options={},auth=false,allowMissing=false){if(!config)
 const authUrl=action=>'https://identitytoolkit.googleapis.com/v1/accounts:'+action+'?key='+encodeURIComponent(config?.apiKey||'');
 function persist(data,email){session={projectId:config.projectId,access_token:data.idToken||data.id_token,refresh_token:data.refreshToken||data.refresh_token,expires_at:Date.now()/1000+Number(data.expiresIn||data.expires_in),user:{id:data.localId||data.user_id,email:data.email||email}};localStorage.setItem(SESSION,JSON.stringify(session));}
 async function refresh(){if(!refreshing){let email=session.user.email;refreshing=request('https://securetoken.googleapis.com/v1/token?key='+encodeURIComponent(config.apiKey),{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'refresh_token',refresh_token:session.refresh_token}).toString()}).then(data=>persist(data,email)).finally(()=>refreshing=null);}return refreshing;}
+export async function quizAuthToken(){
+ if(!session)throw Error('Sign in to an account with quiz access.');
+ if(session.expires_at<Date.now()/1000+60)await refresh();
+ return session.access_token;
+}
 export async function signIn(email,password,create=false){const data=await request(authUrl(create?'signUp':'signInWithPassword'),{method:'POST',body:JSON.stringify({email,password,returnSecureToken:true})});persist(data,email);head=null;return session;}
 export async function resetPassword(email){return request(authUrl('sendOobCode'),{method:'POST',body:JSON.stringify({requestType:'PASSWORD_RESET',email})});}
 export async function signout(){session=null;head=null;localStorage.removeItem(SESSION);}
