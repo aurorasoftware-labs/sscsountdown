@@ -7,5 +7,9 @@
     "test": "node --test tests/*.test.mjs",
     "start": "python -m http.server 4173 --directory dist",
     "test:rules": "node --test tests/firestore.integration.mjs"
+  },
+  "dependencies": {
+    "pdf-lib": "1.17.1",
+    "unpdf": "2.1.0"
   }
 }

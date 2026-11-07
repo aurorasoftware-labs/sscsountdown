@@ -20,7 +20,7 @@ Open http://localhost:4173. Do not open index.html directly: ES modules and the 
 
 The configured app is deployed at **https://ssc-compass-2027-asl.web.app**. Open it on her phone, then Settings → sign in or create an account. No Firebase keys need to be entered.
 
-For another deployment, upload the **contents of dist** to a static HTTPS host, for example Cloudflare Pages direct upload or Netlify manual deploy. No build command; publish directory `dist` if deploying from a repository. Check the host's current free-tier terms. Any HTTPS static host works. Use a dedicated root origin (the manifest and app identity assume a root deployment).
+For another deployment, upload the **contents of dist** to a static HTTPS host, for example Cloudflare Pages direct upload or Netlify manual deploy. No build command; publish directory `dist` if deploying from a repository. Check the host's current free-tier terms. Any HTTPS static host works. Use a dedicated root origin (the manifest and app identity assume a root deployment). For AI quizzes on Cloudflare Pages, use the Git-connected setup in [the quiz setup guide](quiz-worker/README.md).
 
 Visit once online. Android Chrome: menu → Install app. iPhone Safari: Share → Add to Home Screen. Offline data lives in browser storage, which may be cleared by browser settings or the operating system; export regular backups. Private browsing is unsuitable for durable storage.
 

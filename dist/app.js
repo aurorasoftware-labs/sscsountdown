@@ -161,7 +161,8 @@ function showLessonQuiz(id){
     method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},
     body:JSON.stringify({lessonId:chapter.lessonId}),signal:AbortSignal.timeout(125000)
    });
-   const quiz=await response.json();
+   const quiz=await response.json().catch(()=>null);
+   if(!quiz)throw Error('Quiz service unavailable. Check the Pages deployment.');
    if(!response.ok)throw Error(quiz.error||'Quiz service unavailable.');
    if(!Array.isArray(quiz.questions)||quiz.questions.length!==5)throw Error('The quiz response was incomplete.');
    quiz.lessonId=chapter.lessonId;

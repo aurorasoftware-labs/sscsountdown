@@ -1,4 +1,3 @@
-export default {
- // Set to the deployed Worker origin plus /quiz, e.g. https://ssc-compass-quiz.example.workers.dev/quiz.
- endpoint:'',
-};
+// Cloudflare Pages serves /api/quiz. Firebase Hosting remains a static mirror.
+const firebaseMirror=/\.(web\.app|firebaseapp\.com)$/.test(globalThis.location?.hostname||'');
+export default {endpoint:firebaseMirror?'':'/api/quiz'};
