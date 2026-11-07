@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {seed,validate,recommendations} from '../dist/core.js';
-import {testPrepPlan} from '../dist/upcoming-tests.js';
+import {testPrepPlan,testReadiness} from '../dist/upcoming-tests.js';
 
 test('upcoming test prep uses open days, daily targets and nearest deadlines',()=>{
  const s=seed();
@@ -16,6 +16,8 @@ test('upcoming test prep uses open days, daily targets and nearest deadlines',()
  assert.equal(validate(s),s);
  let plan=testPrepPlan(s,now);
  assert.equal(plan.byDay[now],undefined);
+ assert.deepEqual(testReadiness(s.upcomingTests[1],s.lessons,plan,now),
+  {firstPass:2,revision:0,ready:0,scheduled:1,inWindow:true});
  assert.equal(plan.byDay['2026-11-10'][0].lesson.id,first.id);
  assert.equal(plan.byDay['2026-11-11'][0].lesson.id,second.id);
  assert.ok(plan.unplaced.some(item=>item.lesson.id===second.id&&item.tests[0].id==='earlier'));

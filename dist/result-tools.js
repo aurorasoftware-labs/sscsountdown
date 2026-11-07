@@ -17,6 +17,23 @@ export const LOSS_REASONS = [
   ['other', 'Other reason'],
 ];
 
+const REVISION_DRILLS={
+ calculation:'Redo 3 similar calculations and check each step',
+ concept:'Review the concept, then explain it and solve an example without notes',
+ careless:'Redo 3 questions using a final answer checklist',
+ misread:'Underline the command words and restate what 3 questions ask',
+ steps:'Rewrite 2 answers with every step or supporting point',
+ time:'Try a short timed set, then review where time went',
+ recall:'Recall the key facts or formulas from memory, then check them',
+ presentation:'Rewrite 2 answers, checking layout, spelling and units',
+ other:'Review the marked answer and practise the correction',
+};
+export function revisionDrills(result){
+ return LOSS_REASONS.filter(([reason])=>result.losses?.[reason]>0)
+  .map(([reason,label])=>({reason,label,marks:result.losses[reason],drill:REVISION_DRILLS[reason]}))
+  .sort((a,b)=>b.marks-a.marks);
+}
+
 export function lessonMatchesSubject(lesson, subject) {
   return subject === 'social'
     ? ['history', 'geo'].includes(lesson.subject)
@@ -24,6 +41,10 @@ export function lessonMatchesSubject(lesson, subject) {
 }
 
 export function validateResultDetails(result) {
+  if (result.upcomingTestId !== undefined
+    && (typeof result.upcomingTestId !== 'string' || !/^[A-Za-z0-9 _-]{1,120}$/.test(result.upcomingTestId))) {
+    throw Error('Invalid linked test.');
+  }
   if (result.lessons !== undefined) {
     if (!Array.isArray(result.lessons) || result.lessons.length > 2000) {
       throw Error('Invalid result lessons.');

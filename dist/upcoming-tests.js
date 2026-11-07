@@ -20,6 +20,21 @@ export function validateUpcomingTests(tests,validDate,validId){
  }
 }
 
+function needsPrep(lesson,test,now){
+ const reviewSince=offsetDate(test.date,-7);
+ return lesson.stage<2||![lesson.covered,lesson.lastReview].some(date=>date>=reviewSince&&date<=now);
+}
+
+export function testReadiness(test,lessons,plan,now){
+ const selected=lessons.filter(lesson=>test.lessonIds.includes(lesson.id));
+ const pending=selected.filter(lesson=>needsPrep(lesson,test,now));
+ const firstPass=pending.filter(lesson=>lesson.stage<2).length;
+ const scheduled=Object.values(plan.byDay).flat()
+  .filter(item=>item.tests.some(entry=>entry.id===test.id)).length;
+ return {firstPass,revision:pending.length-firstPass,ready:selected.length-pending.length,
+  scheduled,inWindow:dateMs(test.date)-dateMs(now)<=TEST_PREP_DAYS*DAY_MS};
+}
+
 export function testPrepPlan(state,now){
  const tests=(state.upcomingTests||[]).filter(test=>test.date>=now)
   .sort((a,b)=>a.date.localeCompare(b.date));
@@ -42,18 +57,18 @@ export function testPrepPlan(state,now){
     ||Number(b.strength==='weak')-Number(a.strength==='weak')||b.priority-a.priority);
   const reviewSince=offsetDate(test.date,-7);
   for(const lesson of candidates){
-   if(lesson.stage>=2&&[lesson.covered,lesson.lastReview].some(date=>date>=reviewSince&&date<=now))continue;
+   if(!needsPrep(lesson,test,now))continue;
    const shared=planned.get(lesson.id);
-   if(shared){
+   if(shared&&shared.date>=reviewSince){
     shared.tests.push(test);
     continue;
    }
-   const revision=lesson.stage>=2;
+   const revision=lesson.stage>=2||Boolean(shared);
    const minutes=revision?Math.max(5,Math.min(30,Math.ceil(lesson.minutes/2))):lesson.minutes;
    const entry={lesson,tests:[test],revision,minutes};
    const date=Object.keys(capacity).find(date=>{
     const room=capacity[date];
-    return date<test.date&&(revision||room.newSlots>0)&&room.minutes>=minutes
+    return date<test.date&&(!shared||date>=reviewSince)&&(revision||room.newSlots>0)&&room.minutes>=minutes
      &&room.windows.some(length=>length>=minutes);
    });
    if(!date){unplaced.push(entry);continue;}
@@ -61,6 +76,7 @@ export function testPrepPlan(state,now){
    room.minutes-=minutes;
    if(!revision)room.newSlots--;
    room.windows[room.windows.findIndex(length=>length>=minutes)]-=minutes;
+   entry.date=date;
    (byDay[date]??=[]).push(entry);
    planned.set(lesson.id,entry);
   }

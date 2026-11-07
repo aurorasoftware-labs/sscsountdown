@@ -1,10 +1,10 @@
-import {TEST_PREP_DAYS,testPrepPlan} from './upcoming-tests.js';
+import {TEST_PREP_DAYS,testPrepPlan,testReadiness} from './upcoming-tests.js';
 import {MAX_REMINDER_TIMES,validateReminderSettings,reminderTimes,reminderMinute,reminderClock,reminderSlots,reminderCalendar} from './reminders.js';
 import {WEEKDAYS,dayAvailability,earlyLesson,validateSchedule} from './schedule.js';
 import {SYLLABUS_VERSION} from './syllabus.js';
 import {STAGES,WEIGHTS,SUBJECTS,GROUPS,today,days,addDays,uid,seed,validate,stats,coverageProjection,aggregate,scoreProjection,weekStart,recommendations,sleepHours,dailyPlan,earlyGoal,upgrade} from './core.js';
 import * as cloud from './cloud.js';
-import {STRENGTHS, LOSS_REASONS, lessonMatchesSubject, validateResultDetails, lossSummary} from './result-tools.js';
+import {STRENGTHS, LOSS_REASONS, lessonMatchesSubject, validateResultDetails, lossSummary, revisionDrills} from './result-tools.js';
 import {PAPERS,boardPapers,paperCoverage,paperTime,PAPER_CHECKS,activity,focusRemaining,focusLog,reminderMessage,paperCalendar} from './study-tools.js';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let scope=cloud.accountKey(),state,version=0,dirty=false,conflict=false,ready=!cloud.session,syncing=false,syncText=cloud.session?'Connecting…':'Saved on this device',saveTimer,installPrompt;
@@ -184,10 +184,21 @@ function testPrepPanel(compact=false){
  const rows=compact?Object.entries(plan.byDay).filter(([date])=>date===current):Object.entries(plan.byDay);
  const past=(state.upcomingTests||[]).filter(test=>test.date<current).sort((a,b)=>b.date.localeCompare(a.date));
  const testRow=test=>{
-  const count=state.lessons.filter(lesson=>test.lessonIds.includes(lesson.id)).length;
-  return `<div class="task-row"><div class="grow"><b>${esc(test.title)}</b>
-   <small>${fmt(test.date)} · ${count} lessons${count<test.lessonIds.length?' · Some lessons are no longer active':''}</small>
-   </div>${button('Edit','edit-upcoming-test','ghost',`data-id="${esc(test.id)}"`)}</div>`;
+  const lessons=state.lessons.filter(lesson=>test.lessonIds.includes(lesson.id));
+  const status=testReadiness(test,lessons,plan,current);
+  const pending=status.firstPass+status.revision;
+  const subjectGroups=GROUPS.filter(([id])=>state.lessons.concat(state.archivedLessons||[])
+   .some(lesson=>test.lessonIds.includes(lesson.id)&&lessonMatchesSubject(lesson,id)));
+  return `<div class="task-row test-entry"><div class="grow"><b>${esc(test.title)}</b>
+   <small>${fmt(test.date)} · ${lessons.length} lessons${lessons.length<test.lessonIds.length?' · Some lessons are no longer active':''}</small>
+   ${test.date>=current?`<small>${status.ready} ready · ${status.firstPass} first pass · ${status.revision} to revise</small>
+    <small>${status.inWindow?`${status.scheduled} of ${pending} pending items fit before the test`:`Scheduling starts ${fmt(addDays(test.date,-TEST_PREP_DAYS))}`}</small>`:''}
+   ${test.date<=current?`<div class="row wrap">${(subjectGroups.length?subjectGroups:[['math']]).map(([subject])=>{
+    const recorded=state.scores.some(result=>result.upcomingTestId===test.id&&result.subject===subject);
+    return button(esc((recorded?'Edit result':'Record result')+(subjectGroups.length>1?' · '+name(subject):'')),
+     'upcoming-test-result','secondary',`data-id="${esc(test.id)}" data-subject="${subject}"`);
+   }).join('')}</div>`:''}
+   </div>${button('Edit test','edit-upcoming-test','ghost',`data-id="${esc(test.id)}"`)}</div>`;
  };
  return `<section class="card spacer" id="upcoming-tests">
   <div class="card-head"><h2>${compact?'Test prep today':'Upcoming tests'}</h2>
@@ -246,21 +257,26 @@ function lessonDialog(id){let l=state.lessons.find(x=>x.id===id)||{id:uid(),subj
  const paper=splitPapers.find(p=>p.id===selection);
  let n={...l,title:f.get('title').trim(),subject:paper?.subject||selection,part:paper?.part||f.get('part').trim(),minutes:Number(f.get('minutes')),priority:Number(f.get('priority')),draft:f.has('draft'),strength:f.get('strength')};if(!n.title||!n.part)throw Error('Enter a title and book.');updateStage(n,Number(f.get('stage')));n.reviewDue=f.get('due')||n.reviewDue;if(exists)state.lessons[state.lessons.findIndex(x=>x.id===id)]=n;else state.lessons.push(n);commit('Lesson saved.');});}
 function updateStage(l,stage){let old=l.stage;l.stage=stage;if(stage>=2&&old<2){if(!l.covered)l.covered=today();if(!l.reviewDue)l.reviewDue=addDays(today(),1);}if(stage<2){l.covered=null;l.reviewDue=null;l.reviewCount=0;}}
-function scoreDialog(id) {
+function scoreDialog(id, test, subject) {
   const existing = state.scores.find(result => result.id === id);
   const result = existing || {
-    id: uid(), date: today(), exam: '', subject: 'math',
+    id: uid(), date: test?.date||today(), exam: test?.title||'', subject: subject||'math',
+    ...(test?{
+      upcomingTestId:test.id,
+      lessons:state.lessons.concat(state.archivedLessons||[]).filter(lesson=>
+        test.lessonIds.includes(lesson.id)&&lessonMatchesSubject(lesson,subject)),
+    }:{}),
     kind: 'Practice', mark: '', max: 100,
   };
   modal(existing ? 'Edit result' : 'Record a result', `
     <div class="form-grid">
       <label class="full">Exam set name
-        <input name="exam" list="exam-sets" maxlength="80" required
+        <input name="exam" list="exam-sets" maxlength="100" required
           placeholder="e.g. Practice round 1" value="${esc(result.exam)}">
         <datalist id="exam-sets">${examSets().map(exam => `<option>${esc(exam)}</option>`).join('')}</datalist>
       </label>
       <label>Subject total
-        <select name="subject" id="result-subject">${subjectOptions(result.subject,true).replace('<option value="all">All subjects</option>','')}</select>
+        <select name="subject" id="result-subject" ${result.upcomingTestId?'disabled':''}>${subjectOptions(result.subject,true).replace('<option value="all">All subjects</option>','')}</select>
       </label>
       <label>Type<select name="kind">${['Practice','Prelim','Board'].map(kind => `<option ${result.kind===kind?'selected':''}>${kind}</option>`).join('')}</select></label>
       <label>Date<input name="date" type="date" max="${today()}" required value="${result.date}"></label>
@@ -288,7 +304,7 @@ function scoreDialog(id) {
   `, form => {
     const saved = {
       ...result,
-      exam: form.get('exam').trim(), subject: form.get('subject'),
+      exam: form.get('exam').trim(), subject: form.get('subject')||result.subject,
       kind: form.get('kind'), date: form.get('date'),
       mark: Number(form.get('mark')), max: Number(form.get('max')),
     };
@@ -317,6 +333,7 @@ function scoreDialog(id) {
     if (existing) state.scores[state.scores.findIndex(other => other.id === id)] = saved;
     else state.scores.push(saved);
     scoreExam = saved.exam;
+    if(test)page='scores';
     commit('Result recorded.');
   });
   $('#result-subject').addEventListener('change', event => {
@@ -375,8 +392,12 @@ function resultMistakes(result) {
   const summary = lossSummary(result);
   if (!summary.lost) return '';
   return `<details class="result-mistakes"><summary>${summary.lost} marks lost</summary>
-    ${LOSS_REASONS.filter(([reason]) => result.losses?.[reason] > 0)
-      .map(([reason,label]) => `<div>${label}: ${result.losses[reason]}</div>`).join('')}
+    ${revisionDrills(result).map(({reason,label,marks,drill})=>{
+    const queued=state.tasks.find(task=>task.resultId===result.id&&task.revisionReason===reason);
+    return `<div class="spacer"><b>${label}: ${marks}</b><p>${drill}.</p>
+      ${queued?`<small>${queued.done?'Practice completed':'Added to your plan for '+fmt(queued.date)}</small>`
+       :button('Add revision task','add-mistake-revision','ghost',`data-id="${esc(result.id)}" data-reason="${reason}"`)}</div>`;
+   }).join('')}
     ${summary.unclassified > 0 ? `<div>Unclassified: ${summary.unclassified}</div>` : ''}
     ${result.errorNote ? `<p>${esc(result.errorNote)}</p>` : ''}
   </details>`;
@@ -421,7 +442,28 @@ case 'enable-alerts':await enableAlerts();break;case 'focus-return':showFocus();
  render();
  $('#subject-filter').focus();
  break;
-case 'add-lesson':lessonDialog();break;case 'open-lesson':lessonDialog(id);break;case 'next':{let l=recommendations(state)[0];if(l)lessonDialog(l.id);else toast('All caught up. Add a timed practice paper.');break;}case 'review':{let l=state.lessons.find(x=>x.id===id);l.lastReview=today();l.reviewCount=(l.reviewCount||0)+1;l.reviewDue=addDays(today(),[1,3,7,14,30][Math.min(l.reviewCount,4)]);commit('Review saved. Next: '+fmt(l.reviewDue));break;}case 'targets':targetsDialog();break;case 'score':scoreDialog();break;case 'edit-score':scoreDialog(id);break;case 'delete-score':confirmAction('Delete this result?','This removes the result from all calculations.',()=>{state.scores=state.scores.filter(s=>s.id!==id);commit('Result deleted.');});break;case 'delete-lesson':confirmAction('Delete this lesson?','This removes its progress and linked tasks. Export a backup first if needed.',()=>{if(state.lessons.length<=1)throw Error('Keep at least one lesson.');state.lessons=state.lessons.filter(l=>l.id!==id);state.tasks=state.tasks.filter(t=>t.lessonId!==id);if(!state.lessons.length)throw Error('Keep at least one lesson.');commit('Lesson deleted.');});break;case 'lesson-task':{let l=state.lessons.find(x=>x.id===id);if(state.tasks.some(t=>t.lessonId===id&&t.date===today())){toast('Already in today’s tasks.');break;}state.tasks.push({id:uid(),title:l.title,date:today(),done:false,lessonId:id});$('#dialog').close();commit('Added to today’s focus.');break;}case 'task':modal('One small task',`<div class="form-grid"><label class="full">What will you work on?<input name="title" maxlength="200" required placeholder="e.g. Solve 10 quadratic equations"></label><label>Date<input type="date" name="date" required value="${today()}"></label></div>`,f=>{let title=f.get('title').trim();if(!title)throw Error('Enter a task.');state.tasks.push({id:uid(),title,date:f.get('date'),done:false});commit('Task added.');});break;case 'delete-task':state.tasks=state.tasks.filter(t=>t.id!==id);commit('Task removed.');break;case 'log':modal('Count your focused time',`<div class="form-grid"><label>Date<input type="date" name="date" required max="${today()}" value="${today()}"></label><label>Focused minutes<input type="number" name="minutes" required min="1" max="720" value="30"></label><label class="full">What did you study?<input name="note" maxlength="200" placeholder="Optional note"></label></div>`,f=>{state.sessions.push({id:uid(),date:f.get('date'),minutes:Number(f.get('minutes')),note:f.get('note')});commit('Study time logged.');});break;case 'manage-tests':
+case 'add-lesson':lessonDialog();break;case 'open-lesson':lessonDialog(id);break;case 'next':{let l=recommendations(state)[0];if(l)lessonDialog(l.id);else toast('All caught up. Add a timed practice paper.');break;}case 'review':{let l=state.lessons.find(x=>x.id===id);l.lastReview=today();l.reviewCount=(l.reviewCount||0)+1;l.reviewDue=addDays(today(),[1,3,7,14,30][Math.min(l.reviewCount,4)]);commit('Review saved. Next: '+fmt(l.reviewDue));break;}case 'targets':targetsDialog();break;case 'score':scoreDialog();break;case 'edit-score':scoreDialog(id);break;case 'delete-score':confirmAction('Delete this result?','This removes the result from all calculations.',()=>{state.scores=state.scores.filter(s=>s.id!==id);commit('Result deleted.');});break;case 'delete-lesson':confirmAction('Delete this lesson?','This removes its progress and linked tasks. Export a backup first if needed.',()=>{if(state.lessons.length<=1)throw Error('Keep at least one lesson.');state.lessons=state.lessons.filter(l=>l.id!==id);state.tasks=state.tasks.filter(t=>t.lessonId!==id);if(!state.lessons.length)throw Error('Keep at least one lesson.');commit('Lesson deleted.');});break;case 'lesson-task':{let l=state.lessons.find(x=>x.id===id);if(state.tasks.some(t=>t.lessonId===id&&t.date===today())){toast('Already in today’s tasks.');break;}state.tasks.push({id:uid(),title:l.title,date:today(),done:false,lessonId:id});$('#dialog').close();commit('Added to today’s focus.');break;}case 'task':modal('One small task',`<div class="form-grid"><label class="full">What will you work on?<input name="title" maxlength="200" required placeholder="e.g. Solve 10 quadratic equations"></label><label>Date<input type="date" name="date" required value="${today()}"></label></div>`,f=>{let title=f.get('title').trim();if(!title)throw Error('Enter a task.');state.tasks.push({id:uid(),title,date:f.get('date'),done:false});commit('Task added.');});break;case 'delete-task':state.tasks=state.tasks.filter(t=>t.id!==id);commit('Task removed.');break;case 'log':modal('Count your focused time',`<div class="form-grid"><label>Date<input type="date" name="date" required max="${today()}" value="${today()}"></label><label>Focused minutes<input type="number" name="minutes" required min="1" max="720" value="30"></label><label class="full">What did you study?<input name="note" maxlength="200" placeholder="Optional note"></label></div>`,f=>{state.sessions.push({id:uid(),date:f.get('date'),minutes:Number(f.get('minutes')),note:f.get('note')});commit('Study time logged.');});break;case 'upcoming-test-result':{
+ const test=state.upcomingTests?.find(item=>item.id===id);
+ const subject=n.dataset.subject;
+ if(!test||test.date>today()||!GROUPS.some(([group])=>group===subject))break;
+ const existing=state.scores.find(result=>result.upcomingTestId===id&&result.subject===subject);
+ scoreDialog(existing?.id,test,subject);
+ break;
+}
+case 'add-mistake-revision':{
+ const result=state.scores.find(item=>item.id===id);
+ const reason=n.dataset.reason;
+ const suggestion=result&&revisionDrills(result).find(item=>item.reason===reason);
+ if(!suggestion||state.tasks.some(task=>task.resultId===id&&task.revisionReason===reason))break;
+ const activeLessons=(result.lessons||[]).filter(lesson=>state.lessons.some(item=>item.id===lesson.id));
+ const scope=activeLessons.length?activeLessons.map(lesson=>lesson.title).join(', '):name(result.subject);
+ const title=(suggestion.drill+' · '+scope).slice(0,200);
+ state.tasks.push({id:uid(),title,date:today(),done:false,resultId:id,revisionReason:reason,
+  ...(activeLessons.length===1?{lessonId:activeLessons[0].id}:{})});
+ commit('Revision task added to today’s plan.');
+ break;
+}
+case 'manage-tests':
  page='plan';render();$('#upcoming-tests').scrollIntoView({block:'start'});break;
 case 'add-upcoming-test':upcomingTestDialog();break;
 case 'edit-upcoming-test':upcomingTestDialog(id);break;
