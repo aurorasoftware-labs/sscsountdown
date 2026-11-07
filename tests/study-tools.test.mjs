@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {seed,validate,upgrade} from '../dist/core.js';
-import {boardPapers,paperCoverage,activity,focusRemaining,focusLog,reminderFor,paperCalendar} from '../dist/study-tools.js';
+import {boardPapers,paperCoverage,paperTime,activity,focusRemaining,focusLog,reminderFor,paperCalendar} from '../dist/study-tools.js';
 
 test('all nine supplied dates are correct and existing plans get the timetable without losing progress',()=>{
  const s=seed();s.settings.boards='2027-02-15';s.settings.other='Other language';s.lessons[0].stage=2;
@@ -27,5 +27,5 @@ test('study totals use seven days; previous-day streak remains visible before to
 test('opt-in reminder combines due items and every paper exports one previous-evening alarm',()=>{
  const s=seed();s.settings.reminders=true;s.settings.reminderTime='18:00';s.lessons[0].reviewDue='2027-02-17';
  assert.equal(reminderFor(s,'2027-02-17','17:59'),null);assert.match(reminderFor(s,'2027-02-17','18:00'),/Marathi: tomorrow.*1 revisions due/);
- const cal=paperCalendar(s,new Date('2026-11-07T00:00Z'));assert.equal((cal.match(/BEGIN:VEVENT/g)||[]).length,9);assert.equal((cal.match(/BEGIN:VALARM/g)||[]).length,9);assert.match(cal,/DTSTART;VALUE=DATE:20270218/);assert.match(cal,/TRIGGER;VALUE=DATE-TIME:20270217T123000Z/);
+ const cal=paperCalendar(s,new Date('2026-11-07T00:00Z'));assert.equal((cal.match(/BEGIN:VEVENT/g)||[]).length,9);assert.equal((cal.match(/BEGIN:VALARM/g)||[]).length,9);assert.match(cal,/DTSTART:20270218T053000Z/);assert.match(cal,/DTEND:20270222T083000Z/);assert.match(cal,/DTEND:20270302T073000Z/);assert.match(paperTime(boardPapers(s)[0]),/composite ends 1:00 pm/);assert.match(cal,/TRIGGER;VALUE=DATE-TIME:20270217T123000Z/);
 });

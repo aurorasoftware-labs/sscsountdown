@@ -5,7 +5,15 @@ export const PAPERS=[
  ['math1','Maths 1','2027-03-02','math','Algebra'],['math2','Maths 2','2027-03-04','math','Geometry'],
  ['science1','Science 1','2027-03-08','science','Part 1'],['science2','Science 2','2027-03-11','science','Part 2'],
  ['history','History','2027-03-13','history'],['geography','Geography','2027-03-15','geo']
-].map(([id,title,date,subject,part])=>({id,title,date,subject,part}));
+].map(([id,title,date,subject,part],index)=>({
+ id,title,date,subject,part,
+ endHour:index<3?14:13,
+ composite:id==='marathi'||id==='hindi',
+ code:['16 / A','03 / 17','15 / B','71','71','72','72','73','73'][index]
+}));
+export function paperTime(p){
+ return `11:00 am–${p.endHour-12}:00 pm IST${p.composite?' (composite ends 1:00 pm)':''}`;
+}
 export const PAPER_CHECKS=[['review','Revision done'],['mock','Timed paper done'],['ready','Exam kit ready']];
 export function boardPapers(s){return PAPERS.map(p=>({...p,date:s.settings.paperDates?.[p.id]||p.date})).sort((a,b)=>a.date.localeCompare(b.date));}
 export function paperCoverage(s,p){const lessons=s.lessons.filter(l=>l.subject===p.subject&&(!p.part||l.part===p.part));return {total:lessons.length,done:lessons.filter(l=>l.stage>=2).length};}
@@ -29,8 +37,8 @@ export function paperCalendar(s,now=new Date()){
  const stamp=now.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
  const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//SSC Compass//Board Papers//EN','CALSCALE:GREGORIAN','X-WR-CALNAME:SSC Compass Board Exams'];
  for(const p of boardPapers(s)){
-  const date=p.date.replace(/-/g,''),next=addDays(p.date,1).replace(/-/g,''),eve=addDays(p.date,-1).replace(/-/g,'');
-  lines.push('BEGIN:VEVENT',`UID:ssc-2027-${p.id}@ssccompass`,`DTSTAMP:${stamp}`,`DTSTART;VALUE=DATE:${date}`,`DTEND;VALUE=DATE:${next}`,`SUMMARY:SSC board paper - ${p.title}`,'DESCRIPTION:Check school instructions for exam time and venue.','BEGIN:VALARM',`TRIGGER;VALUE=DATE-TIME:${eve}T123000Z`,'ACTION:DISPLAY',`DESCRIPTION:Tomorrow - ${p.title} board paper`,'END:VALARM','END:VEVENT');
+  const date=p.date.replace(/-/g,''),eve=addDays(p.date,-1).replace(/-/g,'');
+  lines.push('BEGIN:VEVENT',`UID:ssc-2027-${p.id}@ssccompass`,`DTSTAMP:${stamp}`,`DTSTART:${date}T053000Z`,...(!p.composite?[`DTEND:${date}T0${p.endHour-6}3000Z`]:[]),`SUMMARY:SSC board paper - ${p.title}`,`DESCRIPTION:${paperTime(p)}. Check school reporting time and venue.`,'BEGIN:VALARM',`TRIGGER;VALUE=DATE-TIME:${eve}T123000Z`,'ACTION:DISPLAY',`DESCRIPTION:Tomorrow - ${p.title} board paper`,'END:VALARM','END:VEVENT');
  }
  return [...lines,'END:VCALENDAR',''].join('\r\n');
 }

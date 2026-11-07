@@ -81,13 +81,13 @@ The Firebase emulator requires a supported Java runtime; see current official re
 
 ## Exam papers, focus and reminders
 
-The 2027 paper schedule is based on the dates provided for this student: Marathi 18 Feb, English 22 Feb, Hindi 24 Feb, Maths 1 on 2 Mar, Maths 2 on 4 Mar, Science 1 on 8 Mar, Science 2 on 11 Mar, History on 13 Mar, and Geography on 15 Mar. Confirm reporting times and dates with school. Edit individual dates in My plan. Each paper has separate coverage, checklist, marks and a calendar reminder; individual marks do not change the existing six-subject aggregate.
+The 2027 paper schedule is checked against pages 3–6 of the attached Maharashtra SSC February–March 2027 timetable: Marathi 18 Feb, English 22 Feb, Hindi 24 Feb, Maths 1 on 2 Mar, Maths 2 on 4 Mar, Science 1 on 8 Mar, Science 2 on 11 Mar, History on 13 Mar, and Geography on 15 Mar. Confirm reporting times and dates with school. Edit individual dates in My plan. Each paper has separate coverage, checklist, marks and a calendar reminder; individual marks do not change the existing six-subject aggregate.
 
 Student registration asks for name, school, board, email and password. The profile is stored with the private synced plan; the email belongs to the Firebase account. Use the same account on each device. Existing users can add school and board in Settings.
 
 Focus is a 1–180 minute distraction-free timer. It records completed minutes, resumes by wall-clock time if the device suspends the app, and supports optional screen wake lock and full screen. It cannot disable other phone apps or prevent exiting. Use the phone’s Guided Access or app pinning for OS-level limits. Focus history, daily minutes, streak and paper readiness sync with the plan. The running timer itself is device-local.
 
-Daily reminders are opt-in and shown once per date per device when the app is running; timer alerts depend on browser permission and whether the app is running. The downloadable board calendar adds one alarm for each exam on the previous evening at 6:00 pm IST, with no invented exam time. Import it once into your calendar for closed-app alerts. Browser background push is not enabled.
+Daily reminders are opt-in and shown once per date per device when the app is running; timer alerts depend on browser permission and whether the app is running. The downloadable board calendar adds one alarm for each exam on the previous evening at 6:00 pm IST, with the published 11:00 am IST start. Marathi and Hindi omit a calendar end time because the standard and composite papers end at different times. Import it once into your calendar for closed-app alerts. Browser background push is not enabled.
 
 ## How to use
 
