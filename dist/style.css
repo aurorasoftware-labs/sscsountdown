@@ -12,3 +12,7 @@
 .lesson-section-heading{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.8rem 1rem;margin-bottom:.65rem;border:1px solid var(--line);border-inline-start:.4rem solid var(--section-color);border-radius:.65rem;background:#edf1e7}
 .lesson-section-heading h2{margin:0;font-size:1.05rem}
 .lesson-section-heading span{color:var(--muted);font-size:.8rem;white-space:nowrap}
+
+.footer-legal{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.4rem 1rem;margin-top:.85rem;padding-top:.65rem;border-top:1px solid var(--line)}
+.footer-legal nav{display:flex;flex-wrap:wrap;gap:.25rem 1rem}
+.footer-legal a{display:inline-flex;align-items:center;min-height:32px;color:inherit;text-underline-offset:.2em}
